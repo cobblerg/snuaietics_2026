@@ -1,0 +1,19 @@
+# 빌드 중 임시 파일
+dist/.check.js
+
+# 실제 학생 데이터·명단은 올리지 않음
+*.xlsx
+*.csv
+
+# 압축본, 원본 자료(저작권 이미지 포함 PDF)
+*.zip
+*.pdf
+
+# clasp 사용 시 스크립트 ID
+.clasp.json
+
+# OS·편집기
+.DS_Store
+Thumbs.db
+.vscode/
+node_modules/

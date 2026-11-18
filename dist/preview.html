@@ -1,0 +1,1849 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI 윤리 탐험 (데모)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: 학습 지도(trail) — 3개의 핀을 따라 걷는 학생 화면, 조회 중심의 교사 화면 */
+:root{
+  --paper:#EDF2F7; --surface:#FFFFFF; --sunk:#E3EAF2; --ink:#1D2250; --ink-2:#4B5277; --ink-3:#7C83A3; --line:#D3DBE6;
+  --l1:#3C47A6; --l2:#E2A512; --l3:#E1604C; --mint:#1E9E72; --mint-bg:#DDF4EA; --yellow-bg:#FDF1D2; --coral-bg:#FCE4DF; --indigo-bg:#E3E6F7;
+  --red:#D2453A; --amber:#D99A0B; --green:#1E9E72;
+  --display:"Do Hyeon","IBM Plex Sans KR",system-ui,sans-serif;
+  --body:"IBM Plex Sans KR","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  --r:14px; --shadow:0 1px 2px rgba(29,34,80,.06),0 6px 20px rgba(29,34,80,.06);
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --paper:#11142A; --surface:#1A1E3B; --sunk:#151933; --ink:#E7EAF8; --ink-2:#AEB4D3; --ink-3:#7E85A8; --line:#2C3259;
+  --l1:#8C96F0; --l2:#F2C04A; --l3:#F2826F; --mint:#4BCF9C; --mint-bg:#163A33; --yellow-bg:#3A3018; --coral-bg:#3E2320; --indigo-bg:#252B57;
+  --red:#F07468; --amber:#F2C04A; --green:#4BCF9C; --shadow:0 1px 2px rgba(0,0,0,.3),0 6px 20px rgba(0,0,0,.25); color-scheme:dark}}
+:root[data-theme="dark"]{
+  --paper:#11142A; --surface:#1A1E3B; --sunk:#151933; --ink:#E7EAF8; --ink-2:#AEB4D3; --ink-3:#7E85A8; --line:#2C3259;
+  --l1:#8C96F0; --l2:#F2C04A; --l3:#F2826F; --mint:#4BCF9C; --mint-bg:#163A33; --yellow-bg:#3A3018; --coral-bg:#3E2320; --indigo-bg:#252B57;
+  --red:#F07468; --amber:#F2C04A; --green:#4BCF9C; --shadow:0 1px 2px rgba(0,0,0,.3),0 6px 20px rgba(0,0,0,.25); color-scheme:dark}
+*{box-sizing:border-box}
+html,body{min-height:100%}
+body{background:var(--paper);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.6;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 56px}
+h1,h2,h3{font-family:var(--display);font-weight:400;line-height:1.25;text-wrap:balance;margin:0}
+h1{font-size:clamp(34px,6vw,54px)} h2{font-size:clamp(26px,4vw,34px)} h3{font-size:22px}
+p{margin:0}
+.muted{color:var(--ink-2)} .small{font-size:14px} .tiny{font-size:12.5px}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.eyebrow{font-size:12.5px;letter-spacing:.08em;font-weight:600;color:var(--ink-3)}
+.stack{display:flex;flex-direction:column;gap:12px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.spacer{flex:1}
+button{font:inherit;color:inherit}
+.btn{appearance:none;border:0;border-radius:999px;padding:11px 20px;font-weight:600;font-size:15px;cursor:pointer;background:var(--ink);color:var(--paper);display:inline-flex;align-items:center;gap:8px;line-height:1.2;transition:transform .12s,opacity .12s}
+.btn:hover{transform:translateY(-1px)} .btn:active{transform:none}
+.btn:disabled{opacity:.4;cursor:not-allowed;transform:none}
+.btn.ghost{background:transparent;color:var(--ink);box-shadow:inset 0 0 0 1.5px var(--line)}
+.btn.ghost:hover{box-shadow:inset 0 0 0 1.5px var(--ink-3)}
+.btn.soft{background:var(--sunk);color:var(--ink)}
+.btn.sm{padding:7px 13px;font-size:13.5px}
+.btn.go{background:var(--mint);color:#fff}
+:focus-visible{outline:3px solid var(--l1);outline-offset:2px}
+.card{background:var(--surface);border-radius:var(--r);box-shadow:var(--shadow)}
+.pad{padding:22px}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;padding:3px 10px;border-radius:999px;background:var(--sunk);color:var(--ink-2);white-space:nowrap}
+.chip.ok{background:var(--mint-bg);color:var(--mint)} .chip.warn{background:var(--yellow-bg);color:var(--amber)} .chip.bad{background:var(--coral-bg);color:var(--red)} .chip.info{background:var(--indigo-bg);color:var(--l1)}
+.dot{width:8px;height:8px;border-radius:50%;background:currentColor;display:inline-block}
+
+/* top bar */
+.top{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:22px}
+.brand{font-family:var(--display);font-size:22px;display:flex;align-items:center;gap:10px}
+.brand-mark{width:30px;height:30px;border-radius:9px;background:var(--ink);display:grid;place-items:center}
+.brand-mark svg{display:block}
+.vtag{font-family:var(--mono);font-size:11px;padding:2px 7px;border-radius:6px;box-shadow:inset 0 0 0 1px var(--line);color:var(--ink-3)}
+.who{display:flex;align-items:center;gap:10px;font-size:14px}
+.avatar{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:13px;background:var(--indigo-bg);color:var(--l1)}
+
+/* login */
+.login{display:grid;grid-template-columns:1.1fr 1fr;gap:28px;align-items:center;min-height:70vh}
+.login .lead{font-size:18px;color:var(--ink-2);max-width:32em}
+.login h1 em{font-style:normal;color:var(--l2)}
+.rolebox{display:grid;gap:10px;margin-top:6px}
+.gbtn{background:var(--surface);color:var(--ink);box-shadow:inset 0 0 0 1.5px var(--line),var(--shadow);padding:14px 22px;font-size:16px}
+.gbtn .g{width:20px;height:20px;border-radius:50%;background:conic-gradient(var(--l1) 0 25%,var(--l3) 0 50%,var(--l2) 0 75%,var(--mint) 0);display:inline-block;position:relative}
+.gbtn .g::after{content:"";position:absolute;inset:5px;border-radius:50%;background:var(--surface)}
+.trail-art{background:var(--surface);border-radius:22px;box-shadow:var(--shadow);padding:18px}
+@media (max-width:820px){.login{grid-template-columns:1fr;min-height:0}}
+
+/* modal */
+.scrim{position:fixed;inset:0;background:rgba(10,12,30,.45);display:grid;place-items:center;z-index:50;padding:16px}
+.modal{background:var(--surface);border-radius:18px;max-width:440px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.3);overflow:hidden;max-height:90vh;display:flex;flex-direction:column}
+.modal header{padding:20px 22px 10px}
+.acct{display:flex;gap:12px;align-items:center;width:100%;text-align:left;padding:12px 22px;border:0;background:transparent;cursor:pointer;border-top:1px solid var(--line)}
+.acct:hover{background:var(--sunk)}
+.acct .meta{flex:1;min-width:0}
+.acct .meta b{display:block;font-weight:600}
+.acct .meta span{font-size:13px;color:var(--ink-3)}
+.modal-body{overflow:auto}
+
+/* pre quiz / quiz */
+.qwrap{max-width:720px;margin:0 auto}
+.progress{height:6px;border-radius:99px;background:var(--sunk);overflow:hidden}
+.progress > i{display:block;height:100%;background:var(--ink);border-radius:99px;transition:width .3s}
+.qtext{font-size:21px;font-weight:600;line-height:1.5}
+.opts{display:grid;gap:10px}
+.opt{display:flex;gap:12px;align-items:flex-start;text-align:left;padding:14px 16px;border-radius:12px;background:var(--surface);border:0;box-shadow:inset 0 0 0 1.5px var(--line);cursor:pointer;font-size:16px;line-height:1.5}
+.opt:hover{box-shadow:inset 0 0 0 1.5px var(--ink-3)}
+.opt .k{flex:none;width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-size:13px;font-weight:700;background:var(--sunk);color:var(--ink-2);font-family:var(--mono)}
+.opt.sel{box-shadow:inset 0 0 0 2px var(--ink)} .opt.sel .k{background:var(--ink);color:var(--paper)}
+.opt.right{box-shadow:inset 0 0 0 2px var(--green);background:var(--mint-bg)} .opt.right .k{background:var(--green);color:#fff}
+.opt.wrong{box-shadow:inset 0 0 0 2px var(--red);background:var(--coral-bg)}
+.opt:disabled{cursor:default}
+.note{border-radius:12px;padding:14px 16px;font-size:15px;line-height:1.6}
+.note b{display:block;margin-bottom:2px}
+.note.hint{background:var(--yellow-bg)} .note.hint b{color:var(--amber)}
+.note.exp{background:var(--indigo-bg)} .note.exp b{color:var(--l1)}
+.note.bad{background:var(--coral-bg)} .note.bad b{color:var(--red)}
+.note.good{background:var(--mint-bg)} .note.good b{color:var(--mint)}
+.shake{animation:shake .35s}
+@keyframes shake{25%{transform:translateX(-6px)}50%{transform:translateX(5px)}75%{transform:translateX(-3px)}}
+.tries{display:flex;gap:5px;align-items:center}
+.tries i{width:10px;height:10px;border-radius:50%;background:var(--sunk);box-shadow:inset 0 0 0 1.5px var(--line)}
+.tries i.on{background:var(--red);box-shadow:none}
+
+/* level result */
+.level-badge{font-family:var(--display);font-size:64px;width:120px;height:120px;border-radius:30px;display:grid;place-items:center;color:#fff;flex:none}
+.lv-상{background:var(--l1)} .lv-중{background:var(--l2)} .lv-하{background:var(--l3)}
+.startmap{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.startmap .cell{padding:14px;border-radius:12px;background:var(--sunk)}
+.chbar{display:flex;gap:3px;margin-top:8px}
+.chbar i{flex:1;height:8px;border-radius:3px;background:var(--line)}
+.chbar i.go{background:var(--ink)}
+@media (max-width:600px){.startmap{grid-template-columns:1fr}}
+
+/* hub */
+.hubhead{display:flex;gap:18px;align-items:flex-end;flex-wrap:wrap;margin-bottom:18px}
+.trail{width:100%;height:auto;display:block}
+.lessons{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:16px}
+.lcard{padding:20px;display:flex;flex-direction:column;gap:10px;position:relative;overflow:hidden}
+.lcard .num{font-family:var(--display);font-size:15px;color:var(--lc)}
+.lcard h3{font-size:24px}
+.lcard .stripe{position:absolute;left:0;right:0;top:0;height:5px;background:var(--lc)}
+.lcard.locked{opacity:.6}
+.lcard .acts{margin-top:auto;display:flex;gap:8px;flex-wrap:wrap;padding-top:6px}
+@media (max-width:820px){.lessons{grid-template-columns:1fr}}
+
+/* lesson viewer */
+.viewer{display:grid;grid-template-columns:220px 1fr;gap:18px;align-items:start}
+.toc{position:sticky;top:calc(env(safe-area-inset-top,0px) + 12px);padding:14px}
+.toc ol{list-style:none;margin:8px 0 0;padding:0;display:grid;gap:2px}
+.toc button{width:100%;text-align:left;border:0;background:transparent;padding:7px 9px;border-radius:9px;cursor:pointer;font-size:14px;display:flex;gap:8px;align-items:center;color:var(--ink-2)}
+.toc button:hover{background:var(--sunk)}
+.toc button.cur{background:var(--ink);color:var(--paper)}
+.toc button .n{font-family:var(--mono);font-size:12px;width:20px;flex:none;opacity:.8}
+.toc button.skip{opacity:.55}
+.toc button.skip .n::after{content:"";}
+.stage{min-width:0}
+.slide{padding:clamp(20px,4vw,36px);min-height:420px;display:flex;flex-direction:column;gap:18px}
+.slide h2{font-size:clamp(26px,4.2vw,36px)}
+.kind{font-size:12.5px;font-weight:700;letter-spacing:.06em;color:var(--lc)}
+.player{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:12px 14px;margin-top:12px}
+.player .bar{flex:1;min-width:120px;height:6px;border-radius:99px;background:var(--sunk);overflow:hidden}
+.player .bar i{display:block;height:100%;width:0;background:var(--lc)}
+.ibtn{width:40px;height:40px;border-radius:50%;border:0;background:var(--sunk);cursor:pointer;display:grid;place-items:center;flex:none}
+.ibtn:hover{background:var(--line)}
+.ibtn.main{background:var(--lc);color:#fff;width:46px;height:46px}
+.ibtn svg{display:block}
+@media (max-width:820px){.viewer{grid-template-columns:1fr}.toc{position:static}.toc ol{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}}
+
+/* slide building blocks */
+.lede{font-size:18px;line-height:1.7;max-width:38em}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+@media (max-width:640px){.grid2,.grid3{grid-template-columns:1fr}}
+.panel{border-radius:14px;padding:18px}
+.panel.light{background:var(--yellow-bg)} .panel.dark{background:var(--ink);color:var(--paper)}
+.panel.indigo{background:var(--indigo-bg)} .panel.mint{background:var(--mint-bg)} .panel.coral{background:var(--coral-bg)} .panel.sunk{background:var(--sunk)}
+.panel h4{margin:0 0 6px;font-size:17px;font-weight:700}
+.tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.tag{font-size:13px;font-weight:600;padding:4px 10px;border-radius:999px;background:rgba(255,255,255,.65);color:#2a2f5a}
+.panel.dark .tag{background:rgba(255,255,255,.12);color:inherit}
+.qcard{border-radius:16px;padding:22px;background:var(--surface);box-shadow:inset 0 0 0 2px var(--l2)}
+.qcard .lbl{display:inline-block;background:var(--l2);color:#2a2000;font-weight:700;font-size:13px;padding:3px 12px;border-radius:99px;margin-bottom:10px}
+.qcard p{font-size:20px;font-weight:600;line-height:1.5}
+.callout{background:var(--ink);color:var(--paper);border-radius:14px;padding:16px 18px;font-size:17px;line-height:1.6}
+.callout mark{background:transparent;color:var(--l2);font-weight:700}
+.list{margin:0;padding-left:1.2em;display:grid;gap:6px}
+.uses{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.use{padding:14px;border-radius:12px;background:var(--sunk)}
+.use b{display:block;font-size:15px}
+.use span{font-size:13.5px;color:var(--ink-2)}
+@media (max-width:640px){.uses{grid-template-columns:1fr 1fr}}
+/* phone scenario */
+.phone{border-radius:26px;padding:10px;background:var(--ink);max-width:330px;width:100%;margin:0 auto}
+.screen{border-radius:18px;background:linear-gradient(180deg,#cfe0f2,#e9f0f8);aspect-ratio:9/12;position:relative;overflow:hidden}
+.screen .face{position:absolute;left:50%;top:30%;transform:translateX(-50%);width:84px;height:100px}
+.screen .scan{position:absolute;left:50%;top:26%;transform:translateX(-50%);width:120px;height:130px;border:2.5px solid #E1604C;border-radius:10px;animation:pulse 2s infinite}
+.screen .info{position:absolute;left:50%;top:66%;transform:translateX(-50%);background:#fff;color:#1D2250;border-radius:10px;padding:8px 12px;font-size:13px;font-weight:600;white-space:nowrap;box-shadow:0 4px 10px rgba(0,0,0,.12)}
+@keyframes pulse{50%{opacity:.4}}
+@media (prefers-reduced-motion:reduce){.screen .scan{animation:none}.shake{animation:none}}
+.bubbles{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.bubble{border-radius:18px;padding:18px;font-size:16.5px;line-height:1.6;position:relative}
+.bubble .who2{font-size:13px;font-weight:700;margin-bottom:6px;display:block}
+.bubble.dev{background:var(--indigo-bg)} .bubble.dev .who2{color:var(--l1)}
+.bubble.fr{background:var(--coral-bg)} .bubble.fr .who2{color:var(--red)}
+@media (max-width:640px){.bubbles{grid-template-columns:1fr}}
+/* traffic light */
+.signal{display:grid;grid-template-columns:auto 1fr;gap:18px;align-items:center}
+.lamp{background:var(--ink);border-radius:22px;padding:12px;display:grid;gap:10px}
+.lamp i{width:46px;height:46px;border-radius:50%;display:block}
+.lamp .r{background:#E5483C} .lamp .y{background:#F2B825} .lamp .g{background:#2DBE84}
+.sig-items{display:grid;gap:10px}
+.sig{border-radius:12px;padding:12px 14px;background:var(--sunk);border-left:5px solid}
+.sig.r{border-color:#E5483C} .sig.y{border-color:#F2B825} .sig.g{border-color:#2DBE84}
+.sig b{display:block;font-size:15px}
+/* sorting activity */
+.act{display:grid;gap:10px}
+.act-item{border-radius:12px;padding:14px;background:var(--sunk);display:grid;gap:10px}
+.act-item .stmt{font-weight:600}
+.pick{display:flex;gap:8px;flex-wrap:wrap}
+.pick button{border:0;border-radius:99px;padding:6px 12px;font-size:13.5px;font-weight:600;cursor:pointer;background:var(--surface);box-shadow:inset 0 0 0 1.5px var(--line);display:inline-flex;align-items:center;gap:6px}
+.pick button .c{width:12px;height:12px;border-radius:50%}
+.pick button.on{box-shadow:inset 0 0 0 2px var(--ink)}
+.fb{font-size:14px}
+.fb.ok{color:var(--green)} .fb.no{color:var(--red)}
+/* funnel */
+.gigo{display:grid;grid-template-columns:1fr auto 1fr auto 1fr;gap:10px;align-items:center;text-align:center}
+.gigo .box{border-radius:14px;padding:16px 10px}
+.gigo .arrow{font-size:26px;color:var(--ink-3)}
+.blocks{display:flex;gap:4px;justify-content:center;flex-wrap:wrap;margin-bottom:8px}
+.blocks i{width:16px;height:16px;border-radius:4px}
+@media (max-width:640px){.gigo{grid-template-columns:1fr}.gigo .arrow{transform:rotate(90deg)}}
+/* video */
+.video{display:grid;grid-template-columns:1.2fr 1fr;gap:18px;align-items:stretch}
+.vthumb{border-radius:16px;background:linear-gradient(135deg,var(--ink),#3a2f6b);color:#fff;aspect-ratio:16/9;display:flex;flex-direction:column;justify-content:space-between;padding:16px;text-decoration:none;position:relative;overflow:hidden;max-width:100%}
+.vthumb .play{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:66px;height:66px;border-radius:50%;background:#fff;display:grid;place-items:center;transition:transform .15s}
+.vthumb:hover .play{transform:translate(-50%,-50%) scale(1.08)}
+.vthumb .play::after{content:"";border-left:20px solid #E1604C;border-top:12px solid transparent;border-bottom:12px solid transparent;margin-left:5px}
+.vthumb .vt{font-family:var(--display);font-size:22px;line-height:1.25;position:relative}
+.vthumb .src{font-size:12.5px;opacity:.8;position:relative}
+@media (max-width:640px){.video{grid-template-columns:1fr}}
+/* dataset */
+.ds{border-radius:14px;padding:16px;background:var(--sunk);display:grid;gap:10px;text-align:left;border:0;cursor:pointer;box-shadow:inset 0 0 0 1.5px transparent}
+.ds:hover{box-shadow:inset 0 0 0 1.5px var(--ink-3)}
+.ds.on{box-shadow:inset 0 0 0 2px var(--ink)}
+.stackbar{display:flex;height:16px;border-radius:6px;overflow:hidden}
+.legend{display:flex;gap:10px;flex-wrap:wrap;font-size:12.5px;color:var(--ink-2)}
+.legend span{display:inline-flex;gap:5px;align-items:center}
+.legend i{width:10px;height:10px;border-radius:3px;display:inline-block}
+/* gears */
+.gears{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+.gear{aspect-ratio:1;border-radius:50%;display:grid;place-items:center;text-align:center;font-weight:700;font-size:14px;line-height:1.3;padding:8px;position:relative;cursor:pointer;border:0}
+.gear .n{display:block;font-family:var(--mono);font-size:11px;opacity:.75}
+.gear.a{background:var(--yellow-bg);box-shadow:inset 0 0 0 3px var(--l2)} .gear.b{background:var(--mint-bg);box-shadow:inset 0 0 0 3px var(--mint)} .gear.c{background:var(--coral-bg);box-shadow:inset 0 0 0 3px var(--l3)} .gear.d{background:var(--indigo-bg);box-shadow:inset 0 0 0 3px var(--l1)}
+.gear.on{outline:3px solid var(--ink);outline-offset:2px}
+@media (max-width:640px){.gears{grid-template-columns:repeat(3,1fr)}}
+/* choice */
+.vs{display:grid;grid-template-columns:1fr auto 1fr;gap:12px;align-items:center}
+.vs .side{border:0;border-radius:16px;padding:20px;cursor:pointer;font-weight:700;font-size:17px;line-height:1.45;text-align:center}
+.vs .side.a{background:var(--yellow-bg)} .vs .side.b{background:var(--coral-bg)}
+.vs .side.on{box-shadow:inset 0 0 0 3px var(--ink)}
+.vs .mid{font-family:var(--display);font-size:30px;color:var(--l3)}
+textarea,input[type=text],select{font:inherit;color:var(--ink);background:var(--surface);border:1.5px solid var(--line);border-radius:12px;padding:10px 12px;width:100%}
+textarea{min-height:90px;resize:vertical}
+@media (max-width:640px){.vs{grid-template-columns:1fr}.vs .mid{text-align:center}}
+.pledge label{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border-radius:12px;background:var(--sunk);cursor:pointer}
+.pledge input{width:20px;height:20px;margin-top:3px;flex:none;accent-color:var(--mint)}
+.summary-card{border-radius:14px;padding:16px 18px;background:var(--sunk);display:grid;gap:6px}
+.summary-card .n{font-family:var(--mono);font-size:12px;color:var(--ink-3)}
+
+/* certificate */
+.cert{text-align:center;padding:clamp(28px,6vw,56px);display:grid;gap:16px;justify-items:center;position:relative;overflow:hidden}
+.seal{width:110px;height:110px;border-radius:50%;background:var(--mint);display:grid;place-items:center;box-shadow:0 0 0 10px var(--mint-bg)}
+
+/* teacher */
+.tabs{display:flex;gap:4px;background:var(--sunk);padding:4px;border-radius:999px;width:max-content;max-width:100%;overflow-x:auto}
+.tabs button{border:0;background:transparent;padding:8px 16px;border-radius:999px;cursor:pointer;font-weight:600;font-size:14px;color:var(--ink-2);white-space:nowrap}
+.tabs button.on{background:var(--surface);color:var(--ink);box-shadow:var(--shadow)}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.kpi{padding:16px 18px}
+.kpi .v{font-family:var(--display);font-size:40px;line-height:1.1}
+.kpi .l{font-size:13px;color:var(--ink-2);font-weight:600}
+@media (max-width:760px){.kpis{grid-template-columns:1fr 1fr}}
+.tablewrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th{font-size:12.5px;font-weight:600;color:var(--ink-3);text-align:left;padding:10px 12px;border-bottom:1.5px solid var(--line);white-space:nowrap;background:var(--surface);position:sticky;top:0}
+td{padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap;font-variant-numeric:tabular-nums}
+tbody tr{cursor:pointer}
+tbody tr:hover td{background:var(--sunk)}
+tbody tr.sel td{background:var(--indigo-bg)}
+.sheet td,.sheet th{font-family:var(--mono);font-size:12.5px;border:1px solid var(--line)}
+.sheet th{background:var(--sunk);color:var(--ink-2)}
+.sheet tbody tr{cursor:default}
+.lmini{display:flex;gap:4px}
+.lmini i{width:26px;height:8px;border-radius:3px;background:var(--line);display:block}
+.lmini i.d{background:var(--mint)} .lmini i.p{background:var(--l2)}
+.detail{padding:20px;display:grid;gap:14px}
+.dl{display:grid;grid-template-columns:auto 1fr;gap:6px 16px;font-size:14px}
+.dl dt{color:var(--ink-3)} .dl dd{margin:0;font-weight:600}
+.split{display:grid;grid-template-columns:1fr 340px;gap:16px;align-items:start}
+@media (max-width:900px){.split{grid-template-columns:1fr}}
+.dist{display:grid;gap:10px}
+.dist .r{display:grid;grid-template-columns:110px 1fr 40px;gap:10px;align-items:center;font-size:14px}
+.dist .track{height:14px;border-radius:5px;background:var(--sunk);overflow:hidden}
+.dist .track i{display:block;height:100%;border-radius:5px}
+.rules{display:grid;gap:8px;font-size:14px}
+.rules div{display:flex;gap:10px}
+.rules b{min-width:118px;color:var(--ink-3);font-weight:600}
+.toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:10px 18px;border-radius:99px;font-size:14px;font-weight:600;z-index:60;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+.detail td,.detail th{padding:8px 6px}
+select{font-size:14px;padding:7px 10px}
+.banner{font-size:13px;padding:10px 14px;border-radius:12px;background:var(--sunk);color:var(--ink-2)}
+
+/* ---- V2 additions ---- */
+#busy{position:fixed;left:0;right:0;top:0;height:3px;z-index:70;background:linear-gradient(90deg,transparent,var(--l2),transparent);background-size:40% 100%;background-repeat:no-repeat;animation:busy 1s linear infinite}
+@keyframes busy{from{background-position:-40% 0}to{background-position:140% 0}}
+.center-note{max-width:560px;margin:8vh auto 0}
+.avatar.staff{background:var(--yellow-bg);color:var(--amber)}
+.toc button.locked{opacity:.45;cursor:not-allowed}
+.toc button.locked:hover{background:transparent}
+.toc button .n svg{vertical-align:-1px}
+.timer{display:inline-flex;align-items:center;gap:5px;font-family:var(--mono);font-size:13.5px;font-variant-numeric:tabular-nums;padding:4px 10px;border-radius:99px;background:var(--sunk);color:var(--ink-2);min-width:64px;justify-content:center}
+.timer.wait{background:var(--yellow-bg);color:var(--amber)}
+.timer.ok{background:var(--mint-bg);color:var(--mint)}
+.ibtn:disabled{opacity:.35;cursor:not-allowed}
+.vframe{position:relative;width:100%;max-width:100%;aspect-ratio:16/9;border-radius:16px;overflow:hidden;background:#000}
+.vframe iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+.fld{display:grid;gap:5px;font-size:13.5px;color:var(--ink-2);font-weight:600}
+.fld input,.fld select{font-weight:400;font-size:15px}
+.setgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:end}
+@media (max-width:640px){.setgrid{grid-template-columns:1fr}}
+.btn.danger{color:var(--red)}
+.btn.bg-danger{background:var(--red);color:#fff}
+.toast.bad{background:var(--red);color:#fff;max-width:min(92vw,560px);text-align:center;border-radius:14px}
+
+.checkcard{margin-top:12px;padding:18px 20px;display:grid;gap:12px;box-shadow:inset 0 0 0 2px var(--lc),var(--shadow)}
+.checkcard.done{box-shadow:inset 0 0 0 2px var(--mint),var(--shadow)}
+.ck-label{font-size:12.5px;font-weight:700;letter-spacing:.06em;color:var(--lc)}
+.checkcard.done .ck-label{color:var(--mint)}
+.ck-q{font-size:17px;font-weight:600;line-height:1.5}
+.ck-opts{display:grid;gap:8px}
+.ck-opts .opt{padding:10px 14px;font-size:15px}
+.timer.need{background:var(--coral-bg);color:var(--red);font-family:var(--body);font-weight:600;font-size:12.5px}
+.avatar.big{width:64px;height:64px;font-size:20px;flex:none}
+.confirm h2{font-size:30px}
+.vframe #ytHost, .vframe iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+.ck-item{display:grid;gap:8px}
+.ck-item + .ck-item{border-top:1px dashed var(--line);padding-top:12px}
+.vwatch .progress{display:block}
+</style>
+</head>
+<body>
+<div id="busy" hidden></div>
+<div class="wrap" id="app"><p style="padding:48px 0;text-align:center;color:#4B5277;font:16px sans-serif">AI 윤리 탐험을 불러오는 중…</p></div>
+<div id="layer"></div>
+<script>
+window.__showErr = function (msg) {
+  var a = document.getElementById('app'); if (!a) return;
+  a.innerHTML = '<div style="max-width:620px;margin:8vh auto 0;padding:24px;border-radius:14px;background:#FCE4DF;color:#7a1f16;font:15px/1.6 sans-serif">'
+    + '<b style="font-size:17px">화면을 불러오지 못했어요</b><br>' + String(msg).replace(/[<>&]/g, '') 
+    + '<br><span style="font-size:13px;opacity:.8">이 화면을 캡처해 관리자에게 보내 주세요.</span></div>';
+};
+window.addEventListener('error', function (e) { window.__showErr('오류: ' + (e.message || e) + (e.lineno ? ' (줄 ' + e.lineno + ')' : '')); });
+</script>
+<script>
+/* =====================================================================
+   Core — 서버(Apps Script)와 데모(브라우저)가 함께 쓰는 진행 규칙
+   - 시간 제한, 수준 분기, 권한 확인, 학생/권한 관리, 일괄 등록 파싱
+   ===================================================================== */
+var Core = (function () {
+  var N = 7;            // 차시별 장 수
+  var QN = 3;           // 차시별 퀴즈 문항 수
+  var LESSONS_N = 3;
+  var VIDEO_CH = { '1-4': true };   // 2차시 5장 = 영상
+  var ROLES = { '관리자': 'admin', '담임': 'homeroom' };
+
+  function defaults() {
+    return { chapterSec: 60, videoSec: 230, explainAfter: 3, videoWatch: 90, start상: 5, start중: 3, start하: 1, levelHi: 5, levelMid: 3 };
+  }
+  var SETTING_INFO = {
+    chapterSec: ['장별 최소 학습 시간(초)', 0, 1800],
+    videoSec: ['영상 장 최소 학습 시간(초)', 0, 3600],
+    explainAfter: ['해설 공개 오답 횟수(문제 단위)', 1, 10],
+    videoWatch: ['영상 최소 시청 비율(%) · 0이면 확인 안 함', 0, 100],
+    start상: ['수준 상 시작 장', 1, 7],
+    start중: ['수준 중 시작 장', 1, 7],
+    start하: ['수준 하 시작 장', 1, 7],
+    levelHi: ['수준 상 최소 점수(6점 만점)', 0, 6],
+    levelMid: ['수준 중 최소 점수(6점 만점)', 0, 6]
+  };
+  function normSettings(s) {
+    var d = defaults(), o = {};
+    Object.keys(d).forEach(function (k) {
+      var v = s && s[k] !== undefined && s[k] !== '' ? Number(s[k]) : d[k];
+      if (isNaN(v)) v = d[k];
+      var r = SETTING_INFO[k]; v = Math.round(Math.min(r[2], Math.max(r[1], v)));
+      o[k] = v;
+    });
+    return o;
+  }
+  function startOf(set, level) { return set['start' + level] || 1; }
+  function levelOf(set, score) { return score >= set.levelHi ? '상' : score >= set.levelMid ? '중' : '하'; }
+  function minSec(set, li, chIdx) { return VIDEO_CH[li + '-' + chIdx] ? set.videoSec : set.chapterSec; }
+
+  function blankLesson() { return { ch: 0, tries: 0, done: false, qi: 0, wrong: [0, 0, 0], hints: 0, enteredAt: 0 }; }
+  function blankProgress() {
+    return { pre: { done: false, score: null, level: null }, lessons: [blankLesson(), blankLesson(), blankLesson()], stage: 'pre', done: false, doneAt: null, lastSeen: null };
+  }
+  function normEmail(e) { return String(e || '').trim().toLowerCase(); }
+  function normCls(c) {
+    c = String(c || '').trim();
+    var m = c.match(/(\d+)\D+(\d+)/);
+    return m ? (+m[1]) + '-' + (+m[2]) : c;
+  }
+  function curLesson(s) { for (var i = 0; i < LESSONS_N; i++) if (!s.lessons[i].done) return i; return LESSONS_N; }
+  function fail(msg) { throw new Error(msg); }
+
+  function role(db, email) {
+    email = normEmail(email);
+    var u = (db.users || []).filter(function (x) { return normEmail(x.email) === email; })[0];
+    if (u && ROLES[u.role]) return { role: ROLES[u.role], roleName: u.role, name: u.name || email, cls: u.cls || '', email: email };
+    var s = findByEmail(db, email);
+    if (s) return { role: 'student', roleName: '학생', name: s.name, cls: s.cls, id: s.id, email: email };
+    return { role: 'none', email: email };
+  }
+  function homeroomClasses(me) { return String(me.cls || '').split(/[,;]+/).map(normCls).filter(Boolean); }
+  function visible(db, me) {
+    if (me.role === 'admin') return db.students;
+    if (me.role === 'homeroom') { var cs = homeroomClasses(me); return db.students.filter(function (s) { return cs.indexOf(s.cls) >= 0; }); }
+    return [];
+  }
+  function findByEmail(db, email) { email = normEmail(email); return db.students.filter(function (s) { return normEmail(s.email) === email; })[0]; }
+  function findById(db, id) { id = String(id); return db.students.filter(function (s) { return String(s.id) === id; })[0]; }
+
+  function validateIdentity(o) {
+    var r = { id: String(o.id || '').trim(), name: String(o.name || '').trim(), email: normEmail(o.email), cls: normCls(o.cls) };
+    var errs = [];
+    if (!r.id) errs.push('학번이 비어 있어요');
+    if (!r.name) errs.push('이름이 비어 있어요');
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(r.email)) errs.push('이메일 형식이 올바르지 않아요');
+    if (!r.cls) errs.push('학급이 비어 있어요');
+    return { value: r, errors: errs };
+  }
+
+  /* ---------------- 학생 학습 행동 ---------------- */
+  var STUDENT_ACTS = {
+    pre: function (s, a, set, now) {
+      if (s.pre.done) fail('사전 퀴즈는 이미 응시했어요.');
+      var sc = Math.max(0, Math.min(6, parseInt(a.score, 10) || 0));
+      s.pre = { done: true, score: sc, level: levelOf(set, sc) };
+      s.stage = 'learn';
+    },
+    enter: function (s, a, set, now) {
+      var li = +a.li; mustCurrent(s, li);
+      var L = s.lessons[li], st = startOf(set, s.pre.level);
+      if (L.ch < st) { L.ch = st; L.enteredAt = now; }
+      if (!L.enteredAt) L.enteredAt = now;
+    },
+    advance: function (s, a, set, now) {
+      var li = +a.li, to = +a.to; mustCurrent(s, li);
+      if (s.stage !== 'learn') fail('지금은 퀴즈 단계예요.');
+      var L = s.lessons[li];
+      if (to <= L.ch) return;
+      if (to !== L.ch + 1 || to > N) fail('장은 순서대로 학습해요.');
+      var wait = remaining(set, li, L, now);
+      if (wait > 0) fail('WAIT:' + wait);
+      if (VIDEO_CH[li + '-' + (L.ch - 1)] && set.videoWatch > 0 && !L.watchSkip && (L.watch || 0) < set.videoWatch)
+        fail('영상을 ' + set.videoWatch + '% 이상 시청해야 다음 장으로 갈 수 있어요.');
+      L.ch = to; L.enteredAt = now;
+    },
+    startQuiz: function (s, a, set, now) {
+      var li = +a.li; mustCurrent(s, li);
+      var L = s.lessons[li];
+      if (s.stage === 'quiz') return;
+      if (L.ch < N) fail('마지막 장까지 학습해야 퀴즈를 풀 수 있어요.');
+      var wait = remaining(set, li, L, now);
+      if (wait > 0) fail('WAIT:' + wait);
+      s.stage = 'quiz';
+    },
+    answer: function (s, a, set, now) {
+      var li = +a.li; mustCurrent(s, li);
+      if (s.stage !== 'quiz') fail('퀴즈 단계가 아니에요.');
+      var L = s.lessons[li];
+      L.tries++;
+      if (!a.correct) { L.wrong[L.qi] = (L.wrong[L.qi] || 0) + 1; return; }
+      if (L.qi < QN - 1) { L.qi++; return; }
+      L.qi = QN; L.done = true; L.ch = N;
+      if (li === LESSONS_N - 1) { s.done = true; s.doneAt = now; s.stage = 'done'; }
+      else { s.stage = 'learn'; }
+    },
+    hint: function (s, a) { var li = +a.li; mustCurrent(s, li); s.lessons[li].hints++; },
+    watch: function (s, a) {
+      var li = +a.li; mustCurrent(s, li); var L = s.lessons[li];
+      if (a.unavailable) { L.watchSkip = true; return; }
+      var p = Math.max(0, Math.min(100, Math.round(Number(a.pct) || 0)));
+      L.watch = Math.max(L.watch || 0, p);
+    }
+  };
+  function mustCurrent(s, li) {
+    if (!s.pre.done) fail('사전 퀴즈를 먼저 풀어요.');
+    if (s.done) fail('이미 이수를 완료했어요.');
+    if (li !== curLesson(s)) fail('아직 열리지 않은 차시예요.');
+  }
+  function remaining(set, li, L, now) {
+    var need = minSec(set, li, L.ch - 1);
+    var el = (now - (L.enteredAt || 0)) / 1000;
+    return Math.max(0, Math.ceil(need - el));
+  }
+
+  /* ---------------- 관리자 행동 ---------------- */
+  var ADMIN_ACTS = {
+    upsertStudent: function (db, a, me) {
+      var v = validateIdentity(a.student || {});
+      if (v.errors.length) fail(v.errors.join(', '));
+      var r = v.value, orig = a.orig ? findById(db, a.orig) : null;
+      db.students.forEach(function (s) {
+        if (s === orig) return;
+        if (String(s.id) === r.id) fail('학번 ' + r.id + '은(는) 이미 등록되어 있어요.');
+        if (normEmail(s.email) === r.email) fail('이메일 ' + r.email + '은(는) 이미 등록되어 있어요.');
+      });
+      if ((db.users || []).some(function (u) { return normEmail(u.email) === r.email; })) fail('교사(관리자·담임) 계정 이메일은 학생으로 등록할 수 없어요.');
+      if (orig) { orig.id = r.id; orig.name = r.name; orig.email = r.email; orig.cls = r.cls; return { id: r.id, mode: 'updated' }; }
+      var s = blankProgress(); s.id = r.id; s.name = r.name; s.email = r.email; s.cls = r.cls;
+      db.students.push(s); sortStudents(db); return { id: r.id, mode: 'added' };
+    },
+    deleteStudent: function (db, a) {
+      var i = db.students.findIndex(function (s) { return String(s.id) === String(a.id); });
+      if (i < 0) fail('학생을 찾을 수 없어요.');
+      db.students.splice(i, 1); return { id: a.id };
+    },
+    resetStudent: function (db, a) {
+      var s = findById(db, a.id); if (!s) fail('학생을 찾을 수 없어요.');
+      var p = blankProgress(); Object.keys(p).forEach(function (k) { s[k] = p[k]; }); return { id: a.id };
+    },
+    importStudents: function (db, a) {
+      var added = 0, updated = 0, errors = [];
+      (a.rows || []).forEach(function (row, i) {
+        var v = validateIdentity(row);
+        if (v.errors.length) { errors.push((row._line || i + 1) + '행: ' + v.errors.join(', ')); return; }
+        var r = v.value;
+        if ((db.users || []).some(function (u) { return normEmail(u.email) === r.email; })) { errors.push((row._line || i + 1) + '행: 교사 계정 이메일이에요'); return; }
+        var s = findById(db, r.id);
+        var other = findByEmail(db, r.email);
+        if (other && other !== s) { errors.push((row._line || i + 1) + '행: 이메일이 다른 학번(' + other.id + ')과 겹쳐요'); return; }
+        if (s) { s.name = r.name; s.email = r.email; s.cls = r.cls; updated++; }
+        else { s = blankProgress(); s.id = r.id; s.name = r.name; s.email = r.email; s.cls = r.cls; db.students.push(s); added++; }
+      });
+      sortStudents(db);
+      return { added: added, updated: updated, errors: errors };
+    },
+    upsertUser: function (db, a, me) {
+      var u = a.user || {};
+      var r = { email: normEmail(u.email), name: String(u.name || '').trim(), role: u.role, cls: u.role === '담임' ? String(u.cls || '').split(/[,;]+/).map(normCls).filter(Boolean).join(',') : '' };
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(r.email)) fail('이메일 형식이 올바르지 않아요.');
+      if (!ROLES[r.role]) fail('역할은 관리자 또는 담임이에요.');
+      if (r.role === '담임' && !r.cls) fail('담임은 담당 학급을 입력해야 해요. 예: 1-3');
+      if (findByEmail(db, r.email)) fail('학생으로 등록된 이메일이에요.');
+      var origEmail = normEmail(a.orig || '');
+      if (origEmail === me.email && (r.role !== '관리자' || r.email !== me.email)) fail('내 계정의 역할과 이메일은 스스로 바꿀 수 없어요.');
+      var list = db.users || (db.users = []);
+      var dup = list.filter(function (x) { return normEmail(x.email) === r.email && normEmail(x.email) !== origEmail; })[0];
+      if (dup) fail('이미 등록된 이메일이에요.');
+      var ex = list.filter(function (x) { return normEmail(x.email) === origEmail; })[0];
+      if (ex) { ex.email = r.email; ex.name = r.name; ex.role = r.role; ex.cls = r.cls; } else list.push(r);
+      return { email: r.email };
+    },
+    deleteUser: function (db, a, me) {
+      var e = normEmail(a.email);
+      if (e === me.email) fail('내 계정은 삭제할 수 없어요.');
+      db.users = (db.users || []).filter(function (u) { return normEmail(u.email) !== e; });
+      return { email: e };
+    },
+    saveSettings: function (db, a) { db.settings = normSettings(a.settings); return { settings: db.settings }; }
+  };
+  function sortStudents(db) { db.students.sort(function (x, y) { return String(x.id).localeCompare(String(y.id), 'ko', { numeric: true }); }); }
+
+  function isWrite(type) { return !!(STUDENT_ACTS[type] || ADMIN_ACTS[type]); }
+  function isStudentAct(type) { return !!STUDENT_ACTS[type]; }
+
+  function act(db, email, now, type, a) {
+    db.settings = normSettings(db.settings);
+    var me = role(db, email), set = db.settings;
+    var changed = { students: [], all: false, users: false, settings: false };
+    a = a || {};
+    if (type === 'bootstrap') {
+      var res = { me: me, settings: set };
+      if (me.role === 'student') res.student = findByEmail(db, email);
+      return { result: res, changed: changed };
+    }
+    if (STUDENT_ACTS[type]) {
+      if (me.role !== 'student') fail('학생 계정에서만 할 수 있어요.');
+      var s = findByEmail(db, email);
+      STUDENT_ACTS[type](s, a, set, now);
+      s.lastSeen = now;
+      changed.students.push(s.id);
+      return { result: { student: s }, changed: changed };
+    }
+    if (type === 'list') {
+      if (me.role !== 'admin' && me.role !== 'homeroom') fail('교사 계정만 조회할 수 있어요.');
+      var out = { students: visible(db, me), settings: set, me: me };
+      if (me.role === 'admin') out.users = db.users || [];
+      return { result: out, changed: changed };
+    }
+    if (ADMIN_ACTS[type]) {
+      if (me.role !== 'admin') fail('관리자만 할 수 있어요.');
+      var r = ADMIN_ACTS[type](db, a, me);
+      if (type === 'upsertUser' || type === 'deleteUser') changed.users = true;
+      else if (type === 'saveSettings') changed.settings = true;
+      else changed.all = true;
+      return { result: r, changed: changed };
+    }
+    fail('알 수 없는 요청: ' + type);
+  }
+
+  /* ---------------- 일괄 등록 파싱 ---------------- */
+  function parseImport(values) {
+    var rows = (values || []).map(function (r) { return (r || []).map(function (c) { return String(c == null ? '' : c).trim(); }); })
+      .filter(function (r) { return r.some(Boolean); });
+    if (!rows.length) return { rows: [], errors: ['내용이 비어 있어요.'] };
+    var find = function (h, keys) { for (var i = 0; i < h.length; i++) for (var k = 0; k < keys.length; k++) if (h[i].replace(/\s/g, '').indexOf(keys[k]) >= 0) return i; return -1; };
+    var head = rows[0], col;
+    var ci = { id: find(head, ['학번']), name: find(head, ['이름', '성명']), email: find(head, ['이메일', 'email', 'Email', '메일', '계정', '구글']), cls: find(head, ['학급']), grade: find(head, ['학년']), ban: find(head, ['반']) };
+    var hasHeader = ci.id >= 0 || ci.name >= 0;
+    if (hasHeader) rows = rows.slice(1);
+    else ci = { id: 0, name: 1, email: 2, cls: 3, grade: -1, ban: -1 };
+    var errors = [];
+    if (ci.id < 0 || ci.name < 0 || ci.email < 0) errors.push('머리글에서 학번·이름·이메일 열을 찾지 못했어요.');
+    if (ci.cls < 0 && !(ci.grade >= 0 && ci.ban >= 0 && ci.ban !== ci.cls)) {
+      if (ci.ban >= 0 && ci.grade < 0) ci.cls = ci.ban; else errors.push('학급(또는 학년·반) 열을 찾지 못했어요.');
+    }
+    if (errors.length) return { rows: [], errors: errors };
+    var out = rows.map(function (r, i) {
+      var cls = ci.cls >= 0 ? r[ci.cls] : (r[ci.grade] + '-' + r[ci.ban]);
+      return { id: r[ci.id], name: r[ci.name], email: r[ci.email], cls: normCls(cls), _line: i + (hasHeader ? 2 : 1) };
+    });
+    return { rows: out, errors: [] };
+  }
+
+  /* ---------------- 시트 행 변환 (학생 1행) ---------------- */
+  var STUDENT_HEADERS = ['학번', '이름', '구글 식별자(이메일)', '학급', '사전퀴즈 응시', '사전퀴즈 점수', '사전퀴즈 수준',
+    '1차시 현재 장', '1차시 퀴즈 도전 횟수', '1차시 퀴즈 완료', '2차시 현재 장', '2차시 퀴즈 도전 횟수', '2차시 퀴즈 완료',
+    '3차시 현재 장', '3차시 퀴즈 도전 횟수', '3차시 퀴즈 완료', '이수 여부', '이수 일시', '현재 단계', '최근 학습', '_진행데이터(수정 금지)'];
+  var USER_HEADERS = ['이메일', '이름', '역할(관리자/담임)', '담당학급(예: 1-3, 여러 반은 쉼표)'];
+  function fmtKST(ms) {
+    if (!ms) return '';
+    var d = new Date(Number(ms) + 9 * 3600 * 1000), p = function (n) { return (n < 10 ? '0' : '') + n; };
+    return d.getUTCFullYear() + '-' + p(d.getUTCMonth() + 1) + '-' + p(d.getUTCDate()) + ' ' + p(d.getUTCHours()) + ':' + p(d.getUTCMinutes());
+  }
+  function stageText(s) {
+    if (!s.pre.done) return '사전 퀴즈 전';
+    if (s.done) return '이수 완료';
+    var i = curLesson(s); return (i + 1) + '차시 ' + (s.stage === 'quiz' ? '퀴즈' : '학습');
+  }
+  function toRow(s) {
+    var yn = function (b) { return b ? 'Y' : 'N'; };
+    var row = [s.id, s.name, s.email, s.cls, yn(s.pre.done), s.pre.score == null ? '' : s.pre.score, s.pre.level || ''];
+    s.lessons.forEach(function (l) { row.push(l.ch || '', l.tries, yn(l.done)); });
+    var prog = { pre: s.pre, lessons: s.lessons, stage: s.stage, done: s.done, doneAt: s.doneAt, lastSeen: s.lastSeen };
+    row.push(yn(s.done), fmtKST(s.doneAt), stageText(s), fmtKST(s.lastSeen), JSON.stringify(prog));
+    return row;
+  }
+  function fromRow(r) {
+    var s = blankProgress(), p = null;
+    try { p = r[20] ? JSON.parse(r[20]) : null; } catch (e) { p = null; }
+    if (p && p.lessons && p.lessons.length === 3) { Object.keys(s).forEach(function (k) { if (p[k] !== undefined) s[k] = p[k]; }); }
+    s.id = String(r[0]).trim(); s.name = String(r[1]).trim(); s.email = normEmail(r[2]); s.cls = normCls(r[3]);
+    return s;
+  }
+  function userFromRow(r) { return { email: normEmail(r[0]), name: String(r[1] || '').trim(), role: String(r[2] || '').trim(), cls: String(r[3] || '').trim() }; }
+  function userToRow(u) { return [u.email, u.name, u.role, u.cls || '']; }
+
+  return {
+    N: N, QN: QN, VIDEO_CH: VIDEO_CH, SETTING_INFO: SETTING_INFO, STUDENT_HEADERS: STUDENT_HEADERS, USER_HEADERS: USER_HEADERS,
+    defaults: defaults, normSettings: normSettings, startOf: startOf, levelOf: levelOf, minSec: minSec, remaining: remaining,
+    blankProgress: blankProgress, blankLesson: blankLesson, normEmail: normEmail, normCls: normCls, curLesson: curLesson, role: role,
+    homeroomClasses: homeroomClasses, act: act, isWrite: isWrite, isStudentAct: isStudentAct, parseImport: parseImport,
+    toRow: toRow, fromRow: fromRow, userFromRow: userFromRow, userToRow: userToRow, fmtKST: fmtKST, stageText: stageText,
+    validateIdentity: validateIdentity
+  };
+})();
+
+/* ---------------- 교육 콘텐츠 (3차시 × 7장) ---------------- */
+const LESSONS = [
+{ title:'AI, 넌 대체 누구야?', sub:'편리함 뒤에 숨은 그림자 발견하기',
+  goal:'AI가 주는 편리함과 그 뒤의 위험을 함께 보고, 개인정보와 동의의 중요성을 설명할 수 있다.',
+  chapters:[
+  { kind:'개념', title:'우리 곁의 AI', sum:'추천, 음성 비서, 번역, 얼굴 인식 잠금처럼 AI는 이미 생활 곳곳에 있다.',
+    html:()=>`<p class="lede">오늘 아침부터 지금까지, 여러분은 AI를 몇 번 만났을까요? 생각보다 훨씬 자주 만났을 거예요.</p>
+    <div class="uses">
+      <div class="use"><b>영상·음악 추천</b><span>내가 본 기록으로 다음 영상을 골라 줘요</span></div>
+      <div class="use"><b>음성 비서</b><span>"오늘 날씨 알려 줘"에 대답해요</span></div>
+      <div class="use"><b>번역기</b><span>외국어 문장을 바로 우리말로 바꿔요</span></div>
+      <div class="use"><b>얼굴 인식 잠금</b><span>내 얼굴로 휴대폰을 열어요</span></div>
+      <div class="use"><b>길 찾기</b><span>막히는 길을 피해 경로를 알려 줘요</span></div>
+      <div class="use"><b>챗봇</b><span>질문하면 글로 답해 줘요</span></div>
+    </div>
+    <div class="callout">생각해 보기: 이 기능들이 잘 작동하려면 AI는 <mark>무엇</mark>을 알고 있어야 할까요?</div>` },
+  { kind:'개념', title:'인공지능의 두 얼굴', sum:'AI는 생활 편의·노인 돌봄·의료 지원 같은 빛과, 가짜뉴스·프라이버시 침해·딥페이크 같은 그림자를 함께 가진다.',
+    html:()=>`<div class="grid2">
+      <div class="panel light"><h4>빛 · 우리를 돕는 AI</h4><p>돌봄 로봇이 어르신의 식사를 챙기고, AI가 의사의 진단을 돕습니다.</p>
+        <div class="tags"><span class="tag">#생활의_편의</span><span class="tag">#노인케어</span><span class="tag">#의료지원</span></div></div>
+      <div class="panel dark"><h4>그림자 · 우리를 위협하는 AI</h4><p>진짜처럼 보이는 가짜 영상, 몰래 녹음되는 대화, 사실이 아닌 뉴스가 퍼집니다.</p>
+        <div class="tags"><span class="tag">#가짜뉴스</span><span class="tag">#프라이버시_침해</span><span class="tag">#딥페이크</span></div></div>
+    </div>
+    <div class="callout">편리함이 주는 혜택만큼, 우리가 감당해야 할 <mark>그림자</mark>도 짙어지고 있습니다.</div>` },
+  { kind:'질문', title:'왜 윤리가 필요할까?', sum:'법과 규칙만으로는 모든 상황을 통제할 수 없기 때문에 개발자와 사용자 모두에게 윤리적 나침반이 필요하다.',
+    html:()=>`<div class="qcard"><span class="lbl">질문 카드</span><p>만약 감시 드론이 범죄를 100% 막아 준다면, 우리는 24시간 감시당해도 괜찮을까요?</p></div>
+    <div class="grid2">
+      <div class="panel mint"><h4>안전해진다면 좋지 않을까?</h4><p class="small">범죄가 사라지면 모두가 안심하고 다닐 수 있어요.</p></div>
+      <div class="panel coral"><h4>내 일상이 전부 기록된다면?</h4><p class="small">어디서 누구를 만났는지 모두 남는다면 자유롭게 행동하기 어려워요.</p></div>
+    </div>
+    <div class="callout">법과 규칙만으로는 모든 상황을 통제할 수 없습니다. 기술을 만드는 개발자, 기술을 쓰는 사용자 모두에게 <mark>‘윤리적 나침반’</mark>이 필요한 이유입니다.</div>` },
+  { kind:'시나리오 1', title:'‘친구 빨리 사귀기 앱’ 구동 중!', sum:'얼굴만 비추면 이름·취미를 알려 주는 앱은 우리의 개인정보를 먹고 자란다.',
+    html:()=>`<div class="grid2" style="align-items:center">
+      <div class="phone"><div class="screen">
+        <svg class="face" viewBox="0 0 84 100" aria-hidden="true"><circle cx="42" cy="38" r="26" fill="#F3C9A5"/><path d="M16 34c2-20 50-24 52 0-10-8-40-8-52 0z" fill="#3B2E2A"/><circle cx="33" cy="40" r="3" fill="#1D2250"/><circle cx="51" cy="40" r="3" fill="#1D2250"/><path d="M34 52q8 6 16 0" stroke="#1D2250" stroke-width="2.5" fill="none" stroke-linecap="round"/><path d="M8 100c4-26 64-26 68 0z" fill="#3C47A6"/></svg>
+        <div class="scan"></div><div class="info">이름: 김민준 · 취미: 축구, 독서</div>
+      </div></div>
+      <div class="stack">
+        <p class="lede">중학교 입학 첫날, 스마트폰 카메라로 친구 얼굴만 비추면 이름과 취미를 알려 주는 AI 앱이 있다면?</p>
+        <div class="note bad"><b>편리해 보이지만…</b>혹시 소름 돋는 점은 없을까요? 이 앱은 ‘무엇’을 먹고 자라는 걸까요?</div>
+        <details class="small"><summary style="cursor:pointer;font-weight:600">정답 확인하기</summary><p style="margin-top:6px">우리의 <b>개인정보</b>입니다. 얼굴 사진, 이름, 취미가 모두 데이터로 쓰여요.</p></details>
+      </div>
+    </div>` },
+  { kind:'관점', title:'두 개의 목소리', sum:'더 많은 데이터를 원하는 개발자와 동의 없는 공유를 거부하는 친구 — 합의(동의) 없는 편의는 폭력이 될 수 있다.',
+    html:()=>`<div class="bubbles">
+      <div class="bubble dev"><span class="who2">앱 개발자</span>더 완벽한 앱을 위해 데이터를 최대한 모으자! 친구의 실시간 위치나 기분 상태까지 알려 주는 추가 기능도 넣으면 대박이겠지?</div>
+      <div class="bubble fr"><span class="who2">화면 속 친구</span>잠깐! 내 동의 없이 내 정보가 다른 친구들에게 공유되는 건 싫어. 오늘 아침 씻지도 않고 나온 내 얼굴을 AI가 몰래 스캔하다니!</div>
+    </div>
+    <div class="callout"><mark>합의(동의) 없는 편의</mark>는 다른 사람에게 폭력이 될 수 있습니다.</div>
+    <p class="muted small">내가 개발자라면 어떤 기능을 빼거나 바꿀까요? 친구의 입장에서 한 번 더 생각해 보세요.</p>` },
+  { kind:'실천 도구', title:'프라이버시 신호등', sum:'빨간불(내 정보 아니니 괜찮다는 위험한 생각) · 노란불(무작정 수집, 사전 예방 부족) · 초록불(침해 가능성 점검과 대처 방안 마련).',
+    html:()=>`<div class="signal">
+      <div class="lamp" aria-hidden="true"><i class="r"></i><i class="y"></i><i class="g"></i></div>
+      <div class="sig-items">
+        <div class="sig r"><b>빨간불 · 절대 정지</b>"내 정보도 아닌데 뭐 어때!" — 위험한 생각</div>
+        <div class="sig y"><b>노란불 · 주의 및 고민</b>"일단 무작정 수집부터 하고 보자!" — 사전 예방 부족</div>
+        <div class="sig g"><b>초록불 · 진행 완료</b>침해 가능성을 미리 체크하고 대처 방안을 마련했어! — 올바른 윤리</div>
+      </div>
+    </div>
+    <p class="muted">앱을 만들거나 쓰기 전에 신호등을 켜 보세요. 지금 내 생각은 몇 번째 불일까요?</p>` },
+  { kind:'활동', title:'신호등 판정하기', sum:'상황별 생각을 신호등 색으로 판정하며 프라이버시 감수성을 점검한다.',
+    html:()=>signalActivity() }
+  ],
+  quiz:[
+    { q:'프라이버시 신호등에서 ‘빨간불(절대 정지)’에 해당하는 생각은?',
+      o:['"내 정보도 아닌데 뭐 어때!"','"침해 가능성을 미리 확인하고 대처 방안을 마련했어."','"일단 무작정 수집부터 하고 보자!"','"사용자에게 먼저 동의를 받자."'], a:0,
+      h:'빨간불은 가장 위험한 생각이에요. 다른 사람의 정보를 가볍게 여기는 태도를 찾아보세요.',
+      e:'빨간불은 다른 사람의 개인정보를 가볍게 여기는 위험한 생각입니다. 무작정 수집은 노란불(사전 예방 부족), 미리 점검하고 대처 방안을 마련한 것은 초록불입니다.' },
+    { q:'‘친구 빨리 사귀기 앱’에서 가장 핵심적인 문제는 무엇인가요?',
+      o:['앱 화면 디자인이 예쁘지 않다.','친구의 동의 없이 얼굴을 스캔하고 정보를 보여 준다.','앱이 너무 느리게 작동한다.','친구를 너무 빨리 사귈 수 있다.'], a:1,
+      h:'화면 속 친구는 자기 얼굴이 찍히고 있다는 걸 알고 있었을까요?',
+      e:'얼굴, 이름, 취미는 모두 개인정보입니다. 수집하고 공유하려면 당사자의 동의가 먼저입니다. 합의(동의) 없는 편의는 폭력이 될 수 있습니다.' },
+    { q:'법과 규칙이 있는데도 AI 윤리가 필요한 까닭으로 가장 알맞은 것은?',
+      o:['AI는 사람보다 항상 정확하기 때문에','윤리를 지키면 AI가 더 빨라지기 때문에','법과 규칙만으로는 새 기술이 만드는 모든 상황을 통제할 수 없기 때문에','AI는 법을 지킬 필요가 없기 때문에'], a:2,
+      h:'‘감시 드론’ 질문 카드를 떠올려 보세요. 법으로 정해지지 않은 고민이 있었죠.',
+      e:'기술은 법보다 빠르게 변합니다. 법과 규칙이 미처 다루지 못하는 상황에서 개발자와 사용자가 스스로 옳은 방향을 고르는 기준, 즉 윤리적 나침반이 필요합니다.' }
+  ]
+},
+{ title:'AI 속마음 들여다보기', sub:'내가 사용자라면? 내가 개발자라면?',
+  goal:'AI 편향이 데이터에서 생긴다는 것을 이해하고, 편향을 줄이기 위한 개발자·사용자의 역할을 말할 수 있다.',
+  chapters:[
+  { kind:'개념', title:'AI는 어떻게 배울까?', sum:'AI는 많은 데이터 속 패턴을 찾아 학습하므로, 무엇을 보고 배웠는지가 판단을 결정한다.',
+    html:()=>`<p class="lede">AI는 스스로 생각해서 똑똑해지는 게 아니에요. 사람이 보여 준 <b>많은 예시(데이터)</b>에서 규칙을 찾아냅니다.</p>
+    <div class="grid3">
+      <div class="panel sunk"><h4>1. 데이터 모으기</h4><p class="small">고양이 사진 1만 장, 강아지 사진 1만 장</p></div>
+      <div class="panel sunk"><h4>2. 패턴 찾기</h4><p class="small">귀 모양, 털, 얼굴 생김새의 차이를 스스로 찾아요</p></div>
+      <div class="panel sunk"><h4>3. 판단하기</h4><p class="small">처음 보는 사진도 "고양이!"라고 맞혀요</p></div>
+    </div>
+    <div class="callout">그렇다면 AI가 <mark>한쪽으로 치우친 사진</mark>만 보고 배웠다면 어떻게 될까요?</div>` },
+  { kind:'시나리오 2', title:'인공지능은 언제나 공정할까?', sum:'가상 피팅 거울이 10대 여학생을 ‘40대 남성, 우울함’으로 잘못 판단했다. AI는 스스로 편견을 만들지 않으며 원인은 데이터에 있다.',
+    html:()=>`<div class="grid2" style="align-items:center">
+      <div class="panel sunk" style="text-align:center;padding:26px">
+        <p class="eyebrow">VIRTUAL FITTING · 분석 결과</p>
+        <p style="font-family:var(--display);font-size:34px;color:var(--red);margin:8px 0">40대 남성, 우울함</p>
+        <p class="muted">실제: 10대 여학생, 신남</p>
+      </div>
+      <div class="stack">
+        <h3>왜 똑똑한 AI가 성별, 나이, 감정을 엉터리로 판단했을까요?</h3>
+        <p class="lede">AI는 스스로 편견을 만들지 않습니다. 정답은 바로 <b>‘데이터’</b>에 있습니다.</p>
+      </div>
+    </div>` },
+  { kind:'원리', title:'Garbage In → Garbage Out', sum:'잘못된(편향된) 데이터가 들어가면 오작동·특정 그룹 배제 같은 차별적 결과가 나온다.',
+    html:()=>`<div class="gigo">
+      <div class="box panel indigo"><div class="blocks">${'<i style="background:var(--l1)"></i>'.repeat(7)}<i style="background:var(--l2)"></i></div><b>편향된 데이터</b><p class="small muted">한쪽 성별, 특정 인종에만 치우친 데이터</p></div>
+      <div class="arrow">→</div>
+      <div class="box panel sunk"><b>AI 학습</b><p class="small muted">들어온 그대로 배워요</p></div>
+      <div class="arrow">→</div>
+      <div class="box panel coral"><b>차별적인 결과물</b><p class="small muted">오작동, 특정 그룹 배제</p></div>
+    </div>
+    <div class="callout">공식: <mark>Garbage In → Garbage Out</mark>. 잘못된 데이터가 들어가면 잘못된 결과가 나옵니다.</div>` },
+  { kind:'사례', title:'편향은 어디서 올까?', sum:'과거 지원자 대부분이 남성이던 이력서로 학습한 채용 AI가 여성 지원자를 불리하게 평가해 폐기된 사례가 있다.',
+    html:()=>`<p class="lede">어느 글로벌 기업은 과거 10년 치 이력서로 <b>채용 AI</b>를 학습시켰어요. 그런데 그 시절 지원자는 대부분 남성이었습니다.</p>
+    <div class="grid3">
+      <div class="panel indigo"><h4>데이터</h4><p class="small">과거 합격자 대부분이 남성</p></div>
+      <div class="panel yellow" style="background:var(--yellow-bg)"><h4>AI가 배운 규칙</h4><p class="small">"남성 지원자가 더 적합하다"</p></div>
+      <div class="panel coral"><h4>결과</h4><p class="small">여성 지원자에게 낮은 점수 → 결국 사용 중단</p></div>
+    </div>
+    <p class="muted">AI는 사회에 이미 있던 편견을 그대로 배우고, 때로는 더 크게 키웁니다.</p>` },
+  { kind:'영상', title:'AI는 편견에서 자유로울 수 있을까?', sum:'영상으로 AI 편견 사례(이미지 생성, 얼굴 인식, 채용 AI 등)와 데이터 균형을 통한 개선 방법을 살펴본다.',
+    html:()=>`<div class="video">
+      ${videoEmbed()}
+      <div class="stack">
+        <p class="eyebrow">시청 포인트</p>
+        <ol class="list">
+          <li>AI 이미지 생성기에 ‘CEO’를 그리게 하면 어떤 모습이 많이 나왔나요?</li>
+          <li>얼굴 인식, 채용 AI에서는 어떤 문제가 있었나요?</li>
+          <li>표정 인식 AI는 어떤 방법으로 문제를 고쳤나요?</li>
+          <li>AI를 감시하고 바로잡는 일은 누구의 몫일까요?</li>
+        </ol>
+        <a class="btn ghost" href="${VIDEO_URL}" target="_blank" rel="noopener" data-a="video">YouTube에서 영상 보기 ↗</a>
+        <p class="tiny muted">${REMOTE?'영상이 재생되지 않으면 YouTube에서 보기를 눌러 새 탭에서 보세요.':'영상은 새 탭에서 열려요. 다 본 뒤 이 탭으로 돌아와 다음 장으로 넘어가세요.'}</p>
+      </div>
+    </div>` },
+  { kind:'개념', title:'기능 ON: 다양성 존중 · 데이터 관리', sum:'편향을 줄이려면 세상의 다양한 모습을 담은 데이터를 골고루 학습시키고 데이터를 꾸준히 관리해야 한다.',
+    html:()=>`<div class="grid2">
+      <div class="panel mint"><h4>[다양성 존중] ON</h4><p>성별, 나이, 피부색, 장애 여부 등 세상의 다양한 모습을 골고루 담은 데이터로 학습시킵니다.</p></div>
+      <div class="panel indigo"><h4>[데이터 관리] ON</h4><p>데이터가 어디서 왔는지, 한쪽으로 치우치지 않았는지 꾸준히 점검하고 고칩니다.</p></div>
+    </div>
+    <div class="callout">편향을 줄이기 위해서는 세상의 <mark>다양한 모습</mark>을 담은 데이터를 골고루 학습시켜야 합니다.</div>
+    <p class="muted small">사용자도 할 일이 있어요. AI 결과가 이상하면 그대로 믿지 말고 의심하고, 신고하고, 알려야 합니다.</p>` },
+  { kind:'활동', title:'개발자 미션: 어떤 데이터로 학습시킬까?', sum:'데이터 구성 비율을 비교해 더 공정한 학습 데이터를 고르는 활동.',
+    html:()=>datasetActivity() }
+  ],
+  quiz:[
+    { q:'가상 피팅 거울이 10대 여학생을 ‘40대 남성, 우울함’으로 판단한 가장 큰 원인은?',
+      o:['거울이 고장 났다.','학생이 표정을 잘못 지었다.','학습 데이터가 특정 성별·연령에 치우쳐 있었다.','AI가 일부러 거짓말을 했다.'], a:2,
+      h:'AI는 스스로 편견을 만들지 않아요. AI가 무엇을 보고 배웠는지 떠올려 보세요.',
+      e:'AI는 학습한 데이터 속 패턴대로 판단합니다. 10대 여학생 데이터가 부족하고 특정 집단 데이터가 많았다면, 처음 보는 모습을 엉뚱하게 판단하게 됩니다.' },
+    { q:'‘Garbage In → Garbage Out’을 바르게 설명한 것은?',
+      o:['데이터가 많을수록 결과는 항상 정확하다.','편향된 데이터로 학습하면 차별적인 결과가 나올 수 있다.','쓰레기 분류에는 AI를 쓰면 안 된다.','AI는 데이터 없이도 학습할 수 있다.'], a:1,
+      h:'입구(In)에 무엇이 들어갔는지가 출구(Out)를 결정해요.',
+      e:'잘못되거나 치우친 데이터가 들어가면 AI도 잘못되거나 치우친 결과를 냅니다. 데이터의 양보다 균형과 품질이 중요합니다.' },
+    { q:'AI 편향을 줄이기 위해 개발자가 할 일로 가장 알맞은 것은?',
+      o:['다양한 성별·나이·인종의 모습을 담은 데이터를 골고루 학습시킨다.','데이터 수를 최대한 줄인다.','한 그룹의 데이터만 집중해서 많이 모은다.','결과를 확인하지 않고 빨리 출시한다.'], a:0,
+      h:'‘다양성 존중’과 ‘데이터 관리’ 스위치를 떠올려 보세요.',
+      e:'세상의 다양한 모습을 고르게 담은 데이터로 학습시키고, 결과가 특정 집단에 불리하지 않은지 꾸준히 점검하는 것이 편향을 줄이는 핵심입니다.' }
+  ]
+},
+{ title:'우리가 함께 만드는 미래', sub:'책임, 안전, 그리고 지구를 구하는 AI',
+  goal:'AI의 책임성·투명성·공공성을 이해하고, 신뢰할 수 있는 AI를 위한 나의 다짐을 세울 수 있다.',
+  chapters:[
+  { kind:'시나리오 3', title:'지구를 구하는 AI', sum:'AI는 환경 오염, 자원 부족 같은 전 지구적 문제 해결에 쓰일 수 있다. 핵심 가치는 공공성과 연대성(SDGs).',
+    html:()=>`<p class="lede">AI는 나 혼자만의 편리함이 아니라, 환경 오염이나 자원 부족 같은 전 지구적 문제를 해결하는 훌륭한 도구가 될 수 있습니다.</p>
+    <div class="grid3">
+      <div class="panel mint"><h4>분리배출 AI</h4><p class="small">페트병, 캔, 유리를 자동으로 구분해 재활용률을 높여요</p></div>
+      <div class="panel indigo"><h4>기후 예측 AI</h4><p class="small">폭우와 폭염을 미리 알려 피해를 줄여요</p></div>
+      <div class="panel light"><h4>에너지 절약 AI</h4><p class="small">건물 냉난방을 똑똑하게 조절해요</p></div>
+    </div>
+    <div class="callout">핵심 가치: <mark>공공성과 연대성</mark>. 모두가 함께 혜택을 나누고 지속 가능한 미래(SDGs)를 위해 협력하는 것.</div>` },
+  { kind:'질문', title:'책임의 무게: 사고가 난다면 누구의 잘못일까?', sum:'자율주행차 사고나 AI 판사의 잘못된 판결처럼, AI의 결정에도 누군가 책임질 수 있어야 한다.',
+    html:()=>`<div class="qcard"><span class="lbl">질문 카드</span><p>자율주행차가 사고를 내거나, AI 판사가 죄 없는 사람에게 벌을 내린다면 누구의 잘못일까요?</p></div>
+    <div class="grid2">
+      <div class="panel sunk"><h4>후보를 떠올려 보세요</h4><ul class="list small"><li>AI를 만든 개발자</li><li>AI를 판매한 회사</li><li>AI를 사용한 사람</li><li>AI 그 자체?</li></ul></div>
+      <div class="panel sunk"><h4>생각해 보기</h4><p class="small">AI는 벌을 받거나 사과할 수 없어요. 그렇다면 책임은 결국 누가 져야 할까요?</p></div>
+    </div>` },
+  { kind:'개념', title:'투명성과 책임성·안전성', sum:'투명성: AI가 왜 그런 판단을 했는지 사람이 이해·설명할 수 있어야 한다. 책임성·안전성: 결과에 책임질 안전망이 필요하다.',
+    html:()=>`<div class="grid2">
+      <div class="panel light"><h4>[투명성]</h4><p>AI가 ‘왜’ 그런 판단을 했는지 과정을 사람이 이해하고 설명할 수 있어야 합니다.</p></div>
+      <div class="panel mint"><h4>[책임성 · 안전성]</h4><p>결과에 대해 누군가는 반드시 책임을 질 수 있는 안전망이 필요합니다.</p></div>
+    </div>
+    <p class="muted">설명할 수 없는 판단은 잘못돼도 고칠 수 없어요. 그래서 투명성과 책임성은 함께 갑니다.</p>` },
+  { kind:'관점 통합', title:'우리가 AI를 통제하는 방법', sum:'개발자: 편향 없는 데이터 수집·투명한 알고리즘·안전성 테스트. 사용자: 개인정보 보호 설정·비판적 수용·오용 및 악용 금지.',
+    html:()=>`<div class="grid2">
+      <div class="panel mint"><h4>[개발자의 역할]</h4><ul class="list"><li>편향 없는 데이터 수집</li><li>투명한 알고리즘 설계</li><li>안전성 테스트 철저</li></ul></div>
+      <div class="panel coral"><h4>[사용자의 역할]</h4><ul class="list"><li>개인정보 보호 설정</li><li>비판적으로 AI 결과 수용하기</li><li>오용 및 악용 금지</li></ul></div>
+    </div>
+    <div class="callout">인공지능 윤리는 기계의 윤리가 아닙니다. 그것을 만들고 다루는 <mark>‘우리(사람)’의 윤리</mark>입니다.</div>` },
+  { kind:'정리', title:'신뢰할 수 있는 AI를 위한 10가지 세팅 값', sum:'인권 보장, 프라이버시 보호, 다양성 존중, 침해 금지, 공공성, 연대성, 데이터 관리, 책임성, 안전성, 투명성.',
+    html:()=>gearsBlock() },
+  { kind:'Your Turn', title:'당신의 선택은?', sum:'사회적 편의 발전과 프라이버시 보호 사이에서 나의 가치를 선택하고 이유를 써 본다.',
+    html:()=>choiceBlock() },
+  { kind:'다짐', title:'The Creator’s Pledge · 우리의 다짐', sum:'우리는 단순한 사용자가 아니라 AI의 방향을 결정하는 설계자이다.',
+    html:()=>pledgeBlock() }
+  ],
+  quiz:[
+    { q:'‘AI가 왜 그런 판단을 했는지 사람이 이해하고 설명할 수 있어야 한다’는 요건은?',
+      o:['연대성','투명성','공공성','다양성 존중'], a:1,
+      h:'속이 훤히 들여다보이는 유리를 떠올려 보세요.',
+      e:'투명성은 AI의 판단 과정을 사람이 이해하고 설명할 수 있어야 한다는 요건입니다. 설명할 수 있어야 잘못을 찾고 책임을 물을 수 있습니다.' },
+    { q:'다음 중 ‘사용자의 역할’에 해당하는 것은?',
+      o:['편향 없는 데이터 수집','투명한 알고리즘 설계','비판적으로 AI 결과 수용하기','안전성 테스트 철저'], a:2,
+      h:'나머지 셋은 AI를 ‘만드는’ 사람이 하는 일이에요.',
+      e:'사용자는 개인정보 보호 설정, AI 결과를 비판적으로 받아들이기, 오용·악용 금지를 실천합니다. 데이터 수집, 알고리즘 설계, 안전성 테스트는 개발자의 역할입니다.' },
+    { q:'‘지구를 구하는 AI’ 시나리오가 보여 주는 핵심 가치는?',
+      o:['프라이버시 보호와 데이터 관리','투명성과 안전성','침해 금지','공공성과 연대성'], a:3,
+      h:'나 혼자가 아니라 ‘모두가 함께’ 혜택을 나누는 가치예요.',
+      e:'공공성은 AI가 개인의 이익을 넘어 사회 전체의 이익에 쓰이는 것, 연대성은 다양한 사람과 세대가 함께 협력하는 것입니다.' }
+  ]
+}];
+
+const PREQUIZ = [
+  { q:'친구 얼굴을 비추면 이름과 취미를 알려 주는 앱이 작동하려면 꼭 필요한 것은?', o:['빠른 인터넷 속도','친구들의 얼굴·이름·취미 데이터','큰 휴대폰 화면','넉넉한 배터리'], a:1 },
+  { q:'내 사진을 다른 사람과 공유하는 서비스에서 가장 먼저 필요한 것은?', o:['예쁜 필터','많은 팔로워','나의 동의(허락)','빠른 업로드'], a:2 },
+  { q:'AI가 사람의 성별과 나이를 자주 틀리게 판단한다면, 가장 가능성 높은 원인은?', o:['학습 데이터가 한쪽으로 치우쳐 있다','카메라 화질이 너무 좋다','AI가 일부러 틀린다','사람들이 표정을 바꾼다'], a:0 },
+  { q:'‘Garbage In, Garbage Out’의 뜻으로 알맞은 것은?', o:['쓰레기는 분리배출해야 한다','잘못된 데이터가 들어가면 잘못된 결과가 나온다','데이터는 많을수록 무조건 좋다','오래된 데이터는 버려야 한다'], a:1 },
+  { q:'자율주행차 사고 후 ‘AI가 왜 그렇게 판단했는지 설명할 수 있어야 한다’는 원칙은?', o:['공공성','연대성','투명성','다양성 존중'], a:2 },
+  { q:'AI 윤리에 대한 설명으로 가장 알맞은 것은?', o:['로봇이 스스로 지키는 규칙이다','AI를 만들고 사용하는 사람이 지켜야 할 윤리다','개발자만 알면 되는 내용이다','법으로 모두 정해져 있어 따로 배울 필요가 없다'], a:1 }
+];
+
+/* ---------------- 인터랙티브 블록 ---------------- */
+const ACT = { sig:{}, ds:null, gear:null, choice:null, reason:'', pledge:{} };
+const SIG_ITEMS = [
+  { s:'"친구 단톡방 사진인데 내 것도 아니니까 다른 반 단톡방에 올려도 되겠지?"', a:'r', w:'다른 사람의 정보를 가볍게 여기는 빨간불 생각이에요.' },
+  { s:'"우리 반 출석 앱인데 혹시 몰라 집 주소, 가족 연락처까지 일단 다 받아 두자."', a:'y', w:'꼭 필요하지 않은 정보까지 무작정 모으는 노란불이에요.' },
+  { s:'"사진을 올리기 전에 얼굴이 나온 친구들에게 먼저 물어보고, 싫다는 친구는 가려 주자."', a:'g', w:'침해 가능성을 미리 확인하고 대처한 초록불이에요.' }
+];
+const SIG_LABEL = { r:['빨간불','#E5483C'], y:['노란불','#F2B825'], g:['초록불','#2DBE84'] };
+function signalActivity(){
+  return `<p class="lede">아래 생각들은 신호등의 몇 번째 불일까요? 각 문장에 알맞은 색을 골라 보세요.</p>
+  <div class="act">${SIG_ITEMS.map((it,i)=>{ const v=ACT.sig[i];
+    return `<div class="act-item"><div class="stmt">${it.s}</div>
+    <div class="pick">${['r','y','g'].map(c=>`<button data-a="sig" data-i="${i}" data-c="${c}" class="${v===c?'on':''}"><span class="c" style="background:${SIG_LABEL[c][1]}"></span>${SIG_LABEL[c][0]}</button>`).join('')}</div>
+    ${v?`<div class="fb ${v===it.a?'ok':'no'}">${v===it.a?'맞았어요. ':'다시 생각해 보세요. '}${v===it.a?it.w:''}</div>`:''}</div>`;}).join('')}
+  </div>`;
+}
+function datasetActivity(){
+  const sets=[
+    { k:'A', name:'데이터 묶음 A', parts:[['성인 남성',72,'var(--l1)'],['성인 여성',20,'var(--l3)'],['10대',5,'var(--l2)'],['60대 이상',3,'var(--mint)']] },
+    { k:'B', name:'데이터 묶음 B', parts:[['성인 남성',27,'var(--l1)'],['성인 여성',27,'var(--l3)'],['10대',23,'var(--l2)'],['60대 이상',23,'var(--mint)']] }
+  ];
+  const v=ACT.ds;
+  return `<p class="lede">여러분은 ‘가상 피팅 거울’ 개발자입니다. 모든 손님의 나이와 성별을 잘 알아보도록 하려면 어떤 데이터로 학습시켜야 할까요?</p>
+  <div class="grid2">${sets.map(s=>`<button class="ds ${v===s.k?'on':''}" data-a="ds" data-k="${s.k}">
+    <b>${s.name}</b>
+    <div class="stackbar">${s.parts.map(p=>`<i style="width:${p[1]}%;background:${p[2]}"></i>`).join('')}</div>
+    <div class="legend">${s.parts.map(p=>`<span><i style="background:${p[2]}"></i>${p[0]} ${p[1]}%</span>`).join('')}</div>
+  </button>`).join('')}</div>
+  ${v==='B'?`<div class="note good"><b>좋은 선택이에요</b>여러 집단의 모습이 고르게 담긴 데이터로 학습하면 10대 여학생도, 어르신도 잘 알아볼 수 있어요. 이것이 ‘다양성 존중’과 ‘데이터 관리’입니다.</div>`:''}
+  ${v==='A'?`<div class="note bad"><b>다시 생각해 보세요</b>A로 학습하면 10대와 60대 이상 손님은 거의 본 적이 없어요. 시나리오 2의 ‘40대 남성, 우울함’ 같은 오판이 또 생길 수 있어요.</div>`:''}`;
+}
+const GEARS = [
+  ['인권 보장','a','AI는 모든 사람의 기본적인 권리와 자유를 존중해야 해요.'],
+  ['프라이버시 보호','b','개인정보를 함부로 수집하거나 쓰지 않아야 해요.'],
+  ['다양성 존중','a','성별·나이·장애 등과 상관없이 누구에게나 공정해야 해요.'],
+  ['침해 금지','c','AI를 사람에게 해를 끼치는 데 쓰면 안 돼요.'],
+  ['공공성','d','개인의 이익만이 아니라 사회 전체의 이익에 쓰여야 해요.'],
+  ['연대성','b','다양한 사람과 세대가 함께 협력하고 혜택을 나눠야 해요.'],
+  ['데이터 관리','c','데이터를 목적에 맞게 쓰고, 치우치지 않도록 관리해야 해요.'],
+  ['책임성','d','문제가 생기면 누가 책임질지 분명해야 해요.'],
+  ['안전성','b','잘못 작동하거나 위험할 때 멈출 수 있어야 해요.'],
+  ['투명성','a','AI의 판단 과정을 설명할 수 있어야 해요.']
+];
+function gearsBlock(){
+  const g=ACT.gear;
+  return `<p class="lede">이 10가지 톱니바퀴 중 하나라도 빠지면, 인공지능은 우리의 삶을 위협할 수 있습니다. 톱니를 눌러 뜻을 확인해 보세요.</p>
+  <div class="gears">${GEARS.map((x,i)=>`<button class="gear ${x[1]} ${g===i?'on':''}" data-a="gear" data-i="${i}"><span><span class="n">${i+1}</span>${x[0]}</span></button>`).join('')}</div>
+  <div class="note exp" aria-live="polite"><b>${g==null?'톱니를 눌러 보세요':(g+1)+'. '+GEARS[g][0]}</b>${g==null?'국가 인공지능 윤리기준(2020)의 10대 핵심 요건입니다.':GEARS[g][2]}</div>`;
+}
+function choiceBlock(){
+  const c=ACT.choice;
+  return `<div class="vs">
+    <button class="side a ${c==='a'?'on':''}" data-a="choice" data-c="a">‘인공지능을 활용한<br>엄청난 사회적 편의 발전’<br><span class="small muted">사회 발전 우선</span></button>
+    <div class="mid">VS</div>
+    <button class="side b ${c==='b'?'on':''}" data-a="choice" data-c="b">‘완벽한 개인 정보 및<br>프라이버시 보호’<br><span class="small muted">프라이버시 우선</span></button>
+  </div>
+  <label class="stack" for="reason" style="gap:6px"><span class="muted">정답은 없습니다. 당신은 어떤 가치가 먼저라고 생각하나요? 그 이유를 써 보세요.</span>
+  <textarea id="reason" data-in="reason" placeholder="여기에 나의 생각을 적어 보세요...">${esc(ACT.reason)}</textarea></label>
+  <p class="tiny muted">이 활동은 생각 정리용이며 기록은 저장되지 않아요.</p>`;
+}
+const PLEDGE = ['나는 다른 사람의 정보를 쓰기 전에 먼저 동의를 구하겠습니다.','나는 AI의 결과를 그대로 믿지 않고 한 번 더 확인하겠습니다.','나는 AI를 다른 사람을 해치거나 속이는 데 쓰지 않겠습니다.','나는 AI가 모두에게 공정하도록 목소리를 내겠습니다.'];
+function pledgeBlock(){
+  const all=PLEDGE.every((_,i)=>ACT.pledge[i]);
+  return `<p class="lede">우리는 단순한 기계의 ‘사용자’가 아닙니다. 우리는 미래의 개발자, 기획자, 그리고 인공지능의 방향을 결정하는 가장 강력한 설계자입니다. 기술의 진보는 AI가 하지만, 그 기술이 향할 ‘올바른 길’을 선택하는 것은 결국 우리의 몫입니다.</p>
+  <div class="pledge stack">${PLEDGE.map((p,i)=>`<label for="pl${i}"><input type="checkbox" id="pl${i}" data-a="pledge" data-i="${i}" ${ACT.pledge[i]?'checked':''}><span>${p}</span></label>`).join('')}</div>
+  ${all?`<div class="note good"><b>다짐 완료</b>이제 마지막 퀴즈를 풀고 인공지능 윤리 탐험을 마무리해요.</div>`:''}`;
+}
+
+
+/* ---------------- 장별 ‘학습 확인’ (교안) ----------------
+   quiz: 장 내용을 읽었는지 확인하는 짧은 문제 (정답을 골라야 통과)
+   task: 활동 장 — 활동을 끝까지 했는지 확인                       */
+ACT.chk = {}; ACT.gearSeen = {};
+const CHECKS = [
+  [ // 1차시
+    { q: '다음 중 AI가 쓰인 예가 <b>아닌</b> 것은?', o: ['내가 본 영상으로 다음 영상 추천', '얼굴로 휴대폰 잠금 해제', '종이 사전에서 단어 찾기'], a: 2, e: '종이 사전은 사람이 직접 찾아요. 나머지는 AI가 데이터를 보고 판단해요.' },
+    { q: '다음 중 AI의 ‘그림자’에 해당하는 것은?', o: ['어르신을 돕는 돌봄 로봇', '진짜처럼 만든 딥페이크 영상', '의사의 진단을 돕는 AI'], a: 1, e: '딥페이크, 가짜뉴스, 프라이버시 침해는 AI가 만드는 그림자예요.' },
+    { q: '개발자와 사용자 모두에게 ‘윤리적 나침반’이 필요한 까닭은?', o: ['법과 규칙만으로는 모든 상황을 통제할 수 없어서', 'AI는 언제나 옳은 판단을 해서', '윤리를 지키면 앱이 빨라져서'], a: 0, e: '기술은 법보다 빠르게 변해요. 그래서 스스로 옳은 방향을 고르는 기준이 필요해요.' },
+    { q: '‘친구 빨리 사귀기 앱’은 무엇을 먹고 자랄까요?', o: ['휴대폰 배터리', '우리의 개인정보', '인터넷 속도'], a: 1, e: '얼굴, 이름, 취미 같은 개인정보가 이 앱의 재료예요.' },
+    { q: '빈칸에 알맞은 말은? “○○ 없는 편의는 폭력이 될 수 있다.”', o: ['합의(동의)', '속도', '디자인'], a: 0, e: '내 정보는 내 허락이 있어야 쓸 수 있어요.' },
+    { q: '“일단 무작정 수집부터 하고 보자!”는 신호등의 몇 번째 불일까요?', o: ['빨간불', '노란불', '초록불'], a: 1, e: '꼭 필요한지 따지지 않고 모으는 것은 사전 예방이 부족한 노란불이에요.' },
+    { task: true, label: '세 문장을 모두 올바른 신호등 색으로 판정하세요.', test: () => SIG_ITEMS.every((it, i) => ACT.sig[i] === it.a), prog: () => `맞힌 문장 ${SIG_ITEMS.filter((it, i) => ACT.sig[i] === it.a).length} / ${SIG_ITEMS.length}`, no: '아직 틀린 문장이 있어요. 빨간불·노란불·초록불의 뜻을 다시 떠올려 보세요.' }
+  ],
+  [ // 2차시
+    { q: 'AI가 판단하는 규칙은 주로 어디에서 올까요?', o: ['AI 스스로의 감정', '학습한 데이터 속 패턴', '개발자의 그날 기분'], a: 1, e: 'AI는 많은 예시(데이터)에서 규칙을 찾아내요.' },
+    { q: '가상 피팅 거울이 엉터리로 판단한 원인은 어디에 있을까요?', o: ['거울의 디자인', '학습한 데이터', '매장의 조명'], a: 1, e: 'AI는 스스로 편견을 만들지 않아요. 원인은 데이터에 있어요.' },
+    { q: 'O / X — 한쪽으로 치우친 데이터로 학습해도 AI의 결과는 공정하다.', o: ['O', 'X'], a: 1, e: 'Garbage In → Garbage Out. 치우친 데이터는 차별적인 결과를 만들어요.' },
+    { q: '채용 AI가 여성 지원자에게 낮은 점수를 준 까닭은?', o: ['과거 합격자 데이터가 대부분 남성이어서', '여성 지원자의 실력이 낮아서', 'AI 프로그램이 고장 나서'], a: 0, e: 'AI는 과거 데이터에 담긴 편견을 그대로 배웠어요.' },
+    { multi: true, items: [
+      { q: '영상 앞부분: AI 이미지 생성기에 ‘CEO’를 그리게 하자 주로 어떤 모습이 나왔나요?', o: ['주로 백인 남성', '여러 인종과 성별이 고르게', '주로 젊은 여성'], a: 0, e: 'AI가 배운 데이터 속 고정관념이 그대로 드러난 사례예요.' },
+      { q: '영상 뒷부분: 표정 인식 AI의 문제는 어떻게 고쳤나요?', o: ['여러 집단의 데이터를 고르게 다시 학습시켰다', 'AI를 끄고 사람이 직접 했다', '카메라 화면을 더 밝게 했다'], a: 0, e: '데이터의 균형을 맞추자 오류가 줄었어요.' }
+    ] },
+    { q: '편향을 줄이는 방법으로 알맞은 것은?', o: ['다양한 모습을 담은 데이터를 골고루 학습시킨다', '한 집단의 데이터만 많이 모은다', '데이터 점검은 생략한다'], a: 0, e: '다양성 존중과 데이터 관리 스위치를 켜는 것이에요.' },
+    { task: true, label: '가상 피팅 거울에 알맞은 학습 데이터를 고르세요.', test: () => ACT.ds === 'B', prog: () => ACT.ds ? `선택한 데이터: ${ACT.ds}` : '아직 고르지 않았어요', no: '그 데이터로는 10대와 60대 이상 손님을 잘 알아보기 어려워요. 다시 골라 보세요.' }
+  ],
+  [ // 3차시
+    { q: '‘지구를 구하는 AI’가 보여 주는 핵심 가치는?', o: ['공공성과 연대성', '속도와 효율', '재미와 흥미'], a: 0, e: '모두가 함께 혜택을 나누고 협력하는 가치예요.' },
+    { q: 'O / X — AI가 사고를 내면 AI가 스스로 책임지고 벌을 받으면 된다.', o: ['O', 'X'], a: 1, e: 'AI는 벌을 받거나 사과할 수 없어요. 책임은 결국 사람이 져야 해요.' },
+    { q: 'AI가 ‘왜’ 그렇게 판단했는지 설명할 수 있어야 한다는 원칙은?', o: ['투명성', '연대성', '공공성'], a: 0, e: '설명할 수 있어야 잘못을 찾고 고칠 수 있어요.' },
+    { q: '다음 중 ‘사용자’의 역할은?', o: ['안전성 테스트 철저', '개인정보 보호 설정', '투명한 알고리즘 설계'], a: 1, e: '나머지 둘은 AI를 만드는 개발자의 역할이에요.' },
+    { task: true, label: '톱니바퀴 10개를 모두 눌러 뜻을 확인하세요.', test: () => Object.keys(ACT.gearSeen).length >= 10, prog: () => `확인한 톱니 ${Object.keys(ACT.gearSeen).length} / 10`, no: '아직 누르지 않은 톱니가 있어요.' },
+    { task: true, label: '한쪽 가치를 고르고, 그 이유를 한 문장 이상(10자 이상) 써 보세요.', test: () => !!ACT.choice && String(ACT.reason || '').trim().length >= 10, prog: () => `${ACT.choice ? '선택 완료' : '아직 선택하지 않았어요'} · 이유 ${String(ACT.reason || '').trim().length}자`, no: '가치를 고르고 이유를 10자 이상 써야 해요.' },
+    { task: true, label: '다짐 네 가지를 읽고 모두 체크하세요.', test: () => PLEDGE.every((_, i) => ACT.pledge[i]), prog: () => `체크한 다짐 ${PLEDGE.filter((_, i) => ACT.pledge[i]).length} / ${PLEDGE.length}`, no: '아직 체크하지 않은 다짐이 있어요.' }
+  ]
+];
+LESSONS.forEach((L, i) => L.chapters.forEach((c, k) => { c.check = CHECKS[i][k]; }));
+
+/* =====================================================================
+   AI 윤리 탐험 — 클라이언트
+   REMOTE: Apps Script 웹 앱(구글 로그인 + 스프레드시트)
+   데모:   이 브라우저 저장소 + 샘플 계정 선택
+   ===================================================================== */
+const REMOTE = !!(window.__BOOT || (typeof google !== 'undefined' && google.script && google.script.run));
+const VIDEO_ID = 'NxIEHHR-0zg';
+const VIDEO_URL = 'https://www.youtube.com/watch?v=' + VIDEO_ID;
+const LC = ['var(--l1)', 'var(--l2)', 'var(--l3)'];
+const N = Core.N;
+let clockOff = 0;
+const nowS = () => Date.now() + clockOff;
+
+function videoEmbed() {
+  if (REMOTE) return `<div class="vframe" id="ytWrap"><div id="ytHost"></div></div><div class="vwatch" id="vwatch" aria-live="polite"></div>`;
+  return `<a class="vthumb" href="${VIDEO_URL}" target="_blank" rel="noopener" data-a="video">
+    <span class="src">YouTube · KBS 뉴스 부산 ‘아하! AI’</span><span class="play" aria-hidden="true"></span>
+    <span class="vt">AI는 편견에서<br>자유로울 수 있을까?</span></a>`;
+}
+
+/* ---------------- 데모 백엔드 ---------------- */
+const LOCAL_KEY = 'ai-ethics-v2-demo';
+const DEMO_USERS = [
+  { email: 'admin@sample-ms.kr', name: '정보부 관리자', role: '관리자', cls: '' },
+  { email: 't11@sample-ms.kr', name: '1학년 1반 담임', role: '담임', cls: '1-1' },
+  { email: 't12@sample-ms.kr', name: '1학년 2반 담임', role: '담임', cls: '1-2' }
+];
+function demoSeed() {
+  const NAMES = [['김하늘','이준서','박서연','최도윤','정하은','강민재','조유나','윤시우','장예린','임건우','한지아','오태민'],
+                 ['서다인','신우진','권나윤','황지호','안소율','송현우','류채원','전도현','홍수아','고은찬','문가온','배지환']];
+  const SPECS = [['new','L2:3','Q3:4','done','done','L1:4','done','Q1:5','done','L3:6','new','done'],
+                 ['done','done','Q2:2','L1:1','done','L2:6','done','new','Q3:1','done','L3:5','L1:3']];
+  const LV = [['하','중','상','상','중','하','상','하','중','중','하','상'],['상','중','중','하','상','중','중','하','상','중','하','하']];
+  const set = Core.normSettings({ chapterSec: 20, videoSec: 40 });
+  const day = 86400000, base = Date.now();
+  const students = [];
+  NAMES.forEach((list, c) => list.forEach((name, i) => {
+    const seed = i + 3 + c * 2, id = `1${String(c + 1).padStart(2, '0')}${String(i + 1).padStart(2, '0')}`;
+    const s = Object.assign(Core.blankProgress(), { id, name, cls: `1-${c + 1}`, email: `s${id}@sample-ms.kr` });
+    const spec = SPECS[c][i], level = LV[c][i];
+    students.push(s);
+    if (spec === 'new') return;
+    const sc = { '상': 5 + (seed % 2), '중': 3 + (seed % 2), '하': seed % 3 }[level];
+    s.pre = { done: true, score: sc, level };
+    s.lastSeen = base - (seed % 5) * 3600000;
+    const fin = (l, k) => Object.assign(l, { ch: N, done: true, tries: 3 + ((seed + k) % 5), qi: 3, wrong: [seed % 2, (seed + 1) % 3, seed % 2], hints: seed % 3, enteredAt: base - 2 * day });
+    if (spec === 'done') { s.lessons.forEach(fin); s.done = true; s.stage = 'done'; s.doneAt = base - (1 + seed % 4) * day + (seed % 6) * 3600000; return; }
+    const [, t, n, v] = spec.match(/^([LQ])(\d):(\d)$/).map((x, k) => k > 1 ? +x : x);
+    for (let k = 0; k < n - 1; k++) fin(s.lessons[k], k);
+    const L = s.lessons[n - 1];
+    L.enteredAt = base - day;
+    if (t === 'L') { L.ch = Math.max(v, Core.startOf(set, level)); s.stage = 'learn'; }
+    else { L.ch = N; L.tries = v; L.qi = Math.min(2, Math.floor(v / 2)); L.wrong[L.qi] = Math.min(v - L.qi, 2); s.stage = 'quiz'; }
+  }));
+  return { students, users: DEMO_USERS.map(u => ({ ...u })), settings: set };
+}
+let LDB = null;
+function localDb() {
+  if (LDB) return LDB;
+  try { const r = localStorage.getItem(LOCAL_KEY); if (r) LDB = JSON.parse(r); } catch (e) {}
+  if (!LDB || !LDB.students) LDB = demoSeed();
+  return LDB;
+}
+function saveLocal() { try { localStorage.setItem(LOCAL_KEY, JSON.stringify(LDB)); } catch (e) {} }
+function localApi(type, args) {
+  if (type === 'previewSheet') throw new Error('데모 화면에서는 구글 스프레드시트 주소로 불러올 수 없어요. 배포한 웹 앱에서 사용할 수 있어요. 지금은 아래 ‘붙여넣기’로 체험해 보세요.');
+  const db = localDb();
+  db.settings = Object.assign({}, db.settings, { videoWatch: 0 });   // 미리보기는 영상이 링크라 시청 확인을 하지 않음
+  const r = Core.act(db, UI.demoEmail, Date.now(), type, JSON.parse(JSON.stringify(args || {})));
+  if (Core.isWrite(type)) saveLocal();
+  return JSON.parse(JSON.stringify(r.result));
+}
+
+/* ---------------- API 호출 ---------------- */
+function rawApi(type, args) {
+  if (!REMOTE) return new Promise((res, rej) => setTimeout(() => { try { res(localApi(type, args)); } catch (e) { rej(e); } }, 60));
+  if (!(typeof google !== 'undefined' && google.script && google.script.run)) return Promise.reject(new Error('서버 연결 도구(google.script)를 불러오지 못했어요. 브라우저의 서드파티 쿠키 차단을 확인해 주세요.'));
+  return new Promise((res, rej) => {
+    const to = setTimeout(() => rej(new Error('서버가 30초 동안 응답하지 않아요. 잠시 뒤 새로고침해 주세요.')), 30000);
+    google.script.run
+      .withSuccessHandler(t => { clearTimeout(to); let r; try { r = JSON.parse(t); } catch (e) { return rej(new Error('서버 응답을 읽지 못했어요.')); } if (r.now) clockOff = r.now - Date.now(); r.ok ? res(r.data) : rej(new Error(r.error)); })
+      .withFailureHandler(e => { clearTimeout(to); rej(new Error('서버 오류: ' + (e && e.message || '연결하지 못했어요.'))); })
+      .api(type, JSON.stringify(args || {}));
+  });
+}
+async function run(type, args, opt = {}) {
+  if (UI.busy && !opt.force) return null;
+  UI.busy = true; busyBar(true);
+  try { return await rawApi(type, args); }
+  catch (e) {
+    const m = String(e.message || e);
+    if (m === 'NOEMAIL') { UI.screen = 'noemail'; render(); return null; }
+    if (m.startsWith('WAIT:')) { toast(`${m.slice(5)}초 뒤에 넘어갈 수 있어요`); return null; }
+    if (UI.screen === 'boot') UI.bootErr = m;
+    if (opt.onError) opt.onError(m); else toast(m, true);
+    return null;
+  } finally { UI.busy = false; busyBar(false); }
+}
+function busyBar(on) { const b = document.getElementById('busy'); if (b) b.hidden = !on; }
+
+/* ---------------- 상태 ---------------- */
+const UI = { screen: 'boot', me: null, set: Core.normSettings({}), st: null, modal: null, busy: false, demoEmail: null,
+  pre: null, lesson: null, quiz: null, doneLi: null,
+  t: { tab: 'list', cls: 'all', filter: 'all', sel: null, list: [], users: [], at: null, sheetUrl: '', imp: null, impResult: null } };
+const me = () => UI.st;
+const curLesson = s => Core.curLesson(s);
+const startOf = s => Core.startOf(UI.set, s.pre.level);
+function esc(t) { return String(t ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+const fmt = ms => Core.fmtKST(ms);
+function stageText(s) { return Core.stageText(s); }
+function contentText(s) {
+  if (!s.pre.done) return '–';
+  if (s.done) return '3차시 완료';
+  const i = curLesson(s), l = s.lessons[i];
+  return s.stage === 'quiz' ? `${i + 1}차시 퀴즈 ${Math.min(l.qi + 1, 3)}/3번` : `${i + 1}차시 ${Math.max(l.ch, startOf(s))}/${N}장`;
+}
+const totalTries = s => s.lessons.reduce((a, l) => a + l.tries, 0);
+function stageChip(s) {
+  if (s.done) return `<span class="chip ok"><span class="dot"></span>이수 완료</span>`;
+  if (!s.pre.done) return `<span class="chip"><span class="dot"></span>미시작</span>`;
+  if (s.stage === 'quiz') return `<span class="chip warn"><span class="dot"></span>${stageText(s)}</span>`;
+  return `<span class="chip info"><span class="dot"></span>${stageText(s)}</span>`;
+}
+const mmss = sec => `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
+const secLabel = sec => sec >= 60 ? `${Math.floor(sec / 60)}분${sec % 60 ? ' ' + (sec % 60) + '초' : ''}` : `${sec}초`;
+
+/* ---------------- 공통 조각 ---------------- */
+const ICON = {
+  play: '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15l13-7.5z"/></svg>',
+  pause: '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4.5" width="4" height="15" rx="1"/><rect x="14" y="4.5" width="4" height="15" rx="1"/></svg>',
+  prev: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>',
+  next: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg>',
+  replay: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 1 0 2.4-5.7"/><path d="M4 4v4h4"/></svg>',
+  lock: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>',
+  clock: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
+  mark: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="9" r="5.5" stroke="#F2C04A" stroke-width="2.4"/><path d="M12 14.5V21" stroke="#F2C04A" stroke-width="2.4" stroke-linecap="round"/><circle cx="12" cy="9" r="1.8" fill="#F2C04A"/></svg>'
+};
+function topbar(right) {
+  return `<div class="top"><div class="brand"><span class="brand-mark">${ICON.mark}</span>AI 윤리 탐험</div><span class="vtag">${REMOTE ? 'V2' : 'V2 · 데모'}</span><span class="spacer"></span>${right || ''}</div>`;
+}
+function avatarText(m) { return m.role === 'admin' ? '관리' : m.role === 'homeroom' ? '담임' : esc((m.name || '').slice(-2)); }
+function whoBox() {
+  const m = UI.me; if (!m) return '';
+  const sub = m.role === 'student' ? `${m.cls} · ${m.id}` : m.role === 'homeroom' ? `담임 · ${m.cls}` : '관리자';
+  return `<div class="who"><span class="avatar ${m.role !== 'student' ? 'staff' : ''}">${avatarText(m)}</span><div style="line-height:1.3"><b>${esc(m.name)}</b><br><span class="tiny muted">${esc(sub)}${REMOTE ? ' · ' + esc(m.email) : ''}</span></div>${REMOTE ? '' : `<button class="btn ghost sm" data-a="logout">로그아웃</button>`}</div>`;
+}
+function trailSVG(s) {
+  const pins = [[90, 150], [300, 70], [510, 130]];
+  const st = i => s ? (s.lessons[i].done ? 'done' : (s.pre.done && curLesson(s) === i ? 'now' : 'lock')) : 'now';
+  const path = 'M40 175 C 120 175, 60 150, 90 150 S 220 70, 300 70 S 430 140, 510 130 S 570 90, 575 60';
+  return `<svg class="trail" viewBox="0 0 600 210" role="img" aria-label="1차시에서 3차시로 이어지는 학습 길">
+    <path d="${path}" style="fill:none;stroke:var(--line)" stroke-width="14" stroke-linecap="round"/>
+    <path d="${path}" style="fill:none;stroke:var(--surface)" stroke-width="3" stroke-dasharray="2 10" stroke-linecap="round"/>
+    ${pins.map((p, i) => { const x = st(i); const col = x === 'lock' ? 'var(--ink-3)' : LC[i];
+      return `<g transform="translate(${p[0]},${p[1]})">
+        ${x === 'now' ? `<circle r="24" style="fill:${col}" opacity=".18"><animate attributeName="r" values="18;28;18" dur="2.4s" repeatCount="indefinite"/></circle>` : ''}
+        <path d="M0 0 C -16 -18 -18 -26 -18 -34 A18 18 0 1 1 18 -34 C 18 -26 16 -18 0 0z" style="fill:${col}"/>
+        ${x === 'done' ? `<path d="M-7 -35 l5 5 9 -10" stroke="#fff" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>` : `<text x="0" y="-28" text-anchor="middle" font-family="Do Hyeon, sans-serif" font-size="17" fill="#fff">${i + 1}</text>`}
+        <text x="0" y="24" text-anchor="middle" font-size="13" font-weight="600" style="fill:var(--ink-2)" font-family="IBM Plex Sans KR, sans-serif">${i + 1}차시</text></g>`; }).join('')}
+  </svg>`;
+}
+
+/* ---------------- 화면: 진입 ---------------- */
+function vBoot() { return topbar('') + `<div class="center-note card pad"><p class="eyebrow">불러오는 중</p><h3>구글 계정을 확인하고 있어요…</h3></div>`; }
+function vNoEmail() {
+  return topbar('') + `<div class="center-note card pad stack"><p class="eyebrow">로그인 확인 필요</p><h3>구글 계정 정보를 받을 수 없어요</h3>
+  <p class="muted">학교에서 받은 구글 계정(학교 도메인)으로 로그인한 뒤 다시 접속해 주세요. 개인 Gmail로 로그인되어 있으면 이 화면이 보여요.</p>
+  <p class="small muted">관리자 안내: 웹 앱 배포 설정이 ‘실행 사용자: 나’, ‘액세스 권한: 학교 도메인 내 모든 사용자’인지 확인하세요.</p></div>`;
+}
+function vUnregistered() {
+  return topbar('') + `<div class="center-note card pad stack"><p class="eyebrow">등록되지 않은 계정</p><h3>아직 학습 명단에 없는 계정이에요</h3>
+  <p class="muted">로그인한 계정: <b class="mono">${esc(UI.me && UI.me.email)}</b></p>
+  <p class="muted">담당 선생님께 이 이메일로 등록해 달라고 요청해 주세요. 다른 계정으로 로그인했다면 계정을 바꾼 뒤 다시 접속하세요.</p>
+  <div>${REMOTE ? `<a class="btn ghost sm" href="${esc(switchUrl())}" target="_top">다른 계정으로 로그인</a>` : `<button class="btn ghost sm" data-a="logout">처음으로</button>`}</div></div>`;
+}
+function vLogin() {
+  return topbar('') + `<section class="login">
+    <div class="stack" style="gap:18px">
+      <p class="eyebrow">중학생을 위한 3차시 자율 학습</p>
+      <h1>체험 중심<br><em>인공지능 윤리</em> 탐험</h1>
+      <p class="lead">사전 퀴즈로 나에게 맞는 시작 지점을 찾고, 내 속도로 3개의 핀을 따라가 보세요. 각 장을 정해진 시간 동안 학습하고 ‘학습 확인’을 통과하면 다음 장이 열려요.</p>
+      <div class="rolebox"><button class="btn gbtn" data-a="openPicker"><span class="g" aria-hidden="true"></span>Google 계정으로 로그인</button>
+      <p class="tiny muted">데모 화면이라 샘플 계정을 고릅니다. 배포한 웹 앱에서는 학교 구글 계정으로 들어온 뒤 본인 확인 화면이 먼저 나와요.</p></div>
+    </div>
+    <div class="trail-art">${trailSVG(null)}
+      <div class="grid3" style="margin-top:4px">${LESSONS.map((L, i) => `<div><p class="small" style="font-weight:700;color:${LC[i]}">${i + 1}차시</p><p class="small">${L.title}</p></div>`).join('')}</div>
+    </div></section>`;
+}
+const DEMO_STUDENTS = ['s10101@sample-ms.kr', 's10102@sample-ms.kr', 's10103@sample-ms.kr', 's10104@sample-ms.kr', 's10201@sample-ms.kr'];
+function vPicker() {
+  const db = localDb();
+  const staff = db.users.map(u => `<button class="acct" data-a="demoLogin" data-email="${esc(u.email)}"><span class="avatar staff">${esc(u.role === '관리자' ? '관리' : '담임')}</span><span class="meta"><b>${esc(u.name)}</b><span>${esc(u.email)}</span></span><span class="chip ${u.role === '관리자' ? 'bad' : 'warn'}">${esc(u.role)}${u.cls ? ' ' + esc(u.cls) : ''}</span></button>`).join('');
+  const studs = DEMO_STUDENTS.map(e => db.students.find(s => s.email === e)).filter(Boolean).map(s => `<button class="acct" data-a="demoLogin" data-email="${s.email}"><span class="avatar">${esc(s.name.slice(-2))}</span><span class="meta"><b>${esc(s.name)} <span class="tiny muted mono">${s.id}</span></b><span>${s.email}</span></span>${stageChip(s)}</button>`).join('');
+  return `<div class="scrim" data-a="closeModal"><div class="modal" role="dialog" aria-label="계정 선택">
+    <header><h3>계정 선택</h3><p class="small muted">데모 샘플 계정입니다. 역할에 따라 다른 화면이 열려요.</p></header>
+    <div class="modal-body"><p class="eyebrow" style="padding:6px 22px">교사</p>${staff}<p class="eyebrow" style="padding:12px 22px 6px">학생</p>${studs}</div></div></div>`;
+}
+
+/* ---------------- 화면: 사전 퀴즈 ---------------- */
+function vPre() {
+  const P = UI.pre, q = PREQUIZ[P.i], sel = P.ans[P.i];
+  return topbar(whoBox()) + `<div class="qwrap stack" style="gap:20px">
+    <div class="stack" style="gap:8px"><p class="eyebrow">사전 퀴즈 · 수준 확인</p>
+    <div class="row"><b class="mono">${P.i + 1} / ${PREQUIZ.length}</b><span class="spacer"></span><span class="small muted">정답은 끝난 뒤에 알려 줘요</span></div>
+    <div class="progress"><i style="width:${P.i / PREQUIZ.length * 100}%"></i></div></div>
+    <div class="card pad stack" style="gap:18px"><p class="qtext">${q.q}</p>
+    <div class="opts">${q.o.map((o, k) => `<button class="opt ${sel === k ? 'sel' : ''}" data-a="preSel" data-k="${k}"><span class="k">${k + 1}</span><span>${o}</span></button>`).join('')}</div></div>
+    <div class="row">${P.i > 0 ? `<button class="btn ghost" data-a="prePrev">이전</button>` : ''}<span class="spacer"></span><button class="btn" data-a="preNext" ${sel == null ? 'disabled' : ''}>${P.i === PREQUIZ.length - 1 ? '결과 보기' : '다음'}</button></div>
+  </div>`;
+}
+function vPreResult() {
+  const s = me(), lv = s.pre.level, st = startOf(s);
+  const msg = { '상': 'AI 윤리의 핵심을 이미 잘 알고 있어요. 각 차시의 깊이 있는 장부터 시작합니다.', '중': '기본 개념은 알고 있어요. 각 차시의 중간 지점부터 시작합니다.', '하': '처음부터 차근차근 시작해요. 천천히 따라오면 충분해요.' }[lv];
+  return topbar(whoBox()) + `<div class="qwrap stack" style="gap:18px">
+    <div class="card pad row" style="gap:22px;align-items:center">
+      <div class="level-badge lv-${lv}">${lv}</div>
+      <div class="stack" style="gap:6px;flex:1;min-width:220px"><p class="eyebrow">사전 퀴즈 결과 · ${s.pre.score} / ${PREQUIZ.length}</p><h2>나의 수준은 ‘${lv}’</h2><p class="muted">${msg}</p></div>
+    </div>
+    <div class="card pad stack"><h3>차시별 시작 지점</h3>
+      <div class="startmap">${LESSONS.map((L, i) => `<div class="cell"><b style="color:${LC[i]}">${i + 1}차시</b> <span class="small">${st}장부터</span>
+      <div class="chbar">${Array.from({ length: N }, (_, k) => `<i class="${k + 1 >= st ? 'go' : ''}"></i>`).join('')}</div></div>`).join('')}</div>
+      <p class="small muted">각 장은 최소 ${secLabel(UI.set.chapterSec)}(영상 장은 ${secLabel(UI.set.videoSec)}) 동안 학습하고 장마다 ‘학습 확인’을 통과해야 다음 장이 열려요.${st > 1 ? ' 건너뛴 장은 차시를 시작할 때 ‘핵심 요약’으로 먼저 보여 줘요.' : ''}</p>
+    </div>
+    <div class="row"><span class="spacer"></span><button class="btn go" data-a="toHub">학습 지도로 가기</button></div>
+  </div>`;
+}
+
+/* ---------------- 화면: 학습 지도 ---------------- */
+function vHub() {
+  const s = me(), cur = curLesson(s), doneN = s.lessons.filter(l => l.done).length;
+  return topbar(whoBox()) + `
+  <div class="hubhead"><div class="stack" style="gap:6px;flex:1;min-width:260px">
+    <p class="eyebrow">나의 학습 지도</p><h2>${s.done ? '탐험 완료! 이수를 축하해요' : `${cur + 1}차시 · ${LESSONS[cur].title}`}</h2>
+    <p class="muted">수준 <b>${s.pre.level}</b> · 각 차시 ${startOf(s)}장부터 · ${doneN}/3 차시 완료</p></div>
+    ${s.done ? `<button class="btn go" data-a="cert">이수 확인증 보기</button>` : `<button class="btn" data-a="continue">${s.stage === 'quiz' ? '퀴즈 이어서 풀기' : '학습 이어하기'}</button>`}
+  </div>
+  <div class="card" style="padding:10px 14px">${trailSVG(s)}</div>
+  <div class="lessons">${LESSONS.map((L, i) => { const l = s.lessons[i]; const locked = !l.done && i !== cur;
+    const status = l.done ? `<span class="chip ok">완료 · 퀴즈 ${l.tries}회 제출</span>` : i === cur ? `<span class="chip info">${s.stage === 'quiz' ? '퀴즈 중' : `${Math.max(l.ch, startOf(s))}/${N}장`}</span>` : `<span class="chip">잠김</span>`;
+    return `<article class="card lcard ${locked ? 'locked' : ''}" style="--lc:${LC[i]}"><span class="stripe"></span>
+      <span class="num">${i + 1}차시</span><h3>${L.title}</h3><p class="small muted">${L.sub}</p>${status}
+      <div class="acts">${l.done ? `<button class="btn soft sm" data-a="review" data-i="${i}">자료 다시보기</button><button class="btn soft sm" data-a="quizReview" data-i="${i}">퀴즈 다시보기</button>` : i === cur ? `<button class="btn sm" data-a="continue">${s.stage === 'quiz' ? '퀴즈 풀기' : '학습하기'}</button>` : `<span class="tiny muted">앞 차시 퀴즈를 통과하면 열려요</span>`}</div>
+    </article>`; }).join('')}</div>`;
+}
+
+/* ---------------- 화면: 학습 자료 (시간 제한) ---------------- */
+function gate() {
+  const V = UI.lesson; if (!V || V.mode !== 'learn' || V.idx < 0) return { gated: false };
+  const L = me().lessons[V.li], frontier = L.ch - 1;
+  if (V.idx !== frontier) return { gated: false };
+  const total = Core.minSec(UI.set, V.li, V.idx);
+  const rem = Core.remaining(UI.set, V.li, L, nowS());
+  return { gated: true, rem, total };
+}
+const ckKey = (li, k) => li + '-' + k;
+function checkPassed(li, k) { return !!(ACT.chk[ckKey(li, k)] || {}).ok; }
+function vCheck(li, k, required) {
+  const c = LESSONS[li].chapters[k].check; if (!c) return '';
+  if (c.multi) return vCheckMulti(li, k, c, required);
+  const st = ACT.chk[ckKey(li, k)] || {};
+  const head = `<div class="row"><span class="ck-label">학습 확인</span>${st.ok ? '<span class="chip ok">통과</span>' : required ? '<span class="chip warn">통과해야 다음으로 넘어가요</span>' : '<span class="chip">선택</span>'}</div>`;
+  let inner;
+  if (c.task) {
+    inner = `<p class="ck-q">${c.label}</p><div class="row"><span class="small muted">${c.prog()}</span><span class="spacer"></span>${st.ok ? '' : `<button class="btn sm" data-a="ckTask" data-li="${li}" data-k="${k}">활동 완료 확인</button>`}</div>
+      ${st.ok ? `<div class="note good"><b>활동 완료!</b>${required ? '이제 다음으로 넘어갈 수 있어요.' : ''}</div>` : st.tried ? `<div class="note bad"><b>아직이에요</b>${c.no}</div>` : ''}`;
+  } else {
+    inner = `<p class="ck-q">${c.q}</p><div class="ck-opts">${c.o.map((o, i) => { const cls = st.sel === i ? (i === c.a ? 'right' : 'wrong') : (st.ok && i === c.a ? 'right' : '');
+      return `<button class="opt ${cls}" data-a="ck" data-li="${li}" data-k="${k}" data-i="${i}" ${st.ok ? 'disabled' : ''}><span class="k">${i + 1}</span><span>${o}</span></button>`; }).join('')}</div>
+      ${st.ok ? `<div class="note good"><b>맞아요!</b>${c.e}</div>` : st.sel != null ? `<div class="note bad"><b>다시 생각해 보세요</b>이 장의 내용을 한 번 더 읽고 다시 골라 보세요.</div>` : ''}`;
+  }
+  return `<div class="card checkcard ${st.ok ? 'done' : ''}" id="checkWrap">${head}${inner}</div>`;
+}
+const CK_WAIT = 30;
+function shuffled(n) { const a = Array.from({ length: n }, (_, i) => i); for (let i = n - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+function multiState(li, k, c) {
+  const key = ckKey(li, k);
+  if (!ACT.chk[key]) ACT.chk[key] = { ok: false, items: c.items.map(it => ({ sel: null, ok: false, wrong: 0, until: 0, perm: shuffled(it.o.length) })) };
+  return ACT.chk[key];
+}
+function vCheckMulti(li, k, c, required) {
+  const st = multiState(li, k, c), done = st.items.filter(x => x.ok).length;
+  const watchOk = !required || videoWatchOk(li);
+  const head = `<div class="row"><span class="ck-label">학습 확인 · 영상 문제 ${c.items.length}개</span>${st.ok ? '<span class="chip ok">통과</span>' : required ? `<span class="chip warn">${done}/${c.items.length} 통과</span>` : '<span class="chip">선택</span>'}</div>`;
+  if (!watchOk) return `<div class="card checkcard" id="checkWrap">${head}<p class="ck-q">영상을 ${UI.set.videoWatch}% 이상 보면 확인 문제가 열려요.</p><p class="small muted">앞으로 건너뛴 부분과 빠른 배속(1.25배 초과)으로 본 부분은 시청 시간에 들어가지 않아요.</p></div>`;
+  const now = Date.now();
+  const inner = c.items.map((it, qi) => {
+    const s2 = st.items[qi], wait = Math.max(0, Math.ceil((s2.until - now) / 1000));
+    const opts = s2.perm.map((oi, pos) => { const cls = s2.ok && oi === it.a ? 'right' : (s2.sel === oi && !s2.ok ? 'wrong' : '');
+      return `<button class="opt ${cls}" data-a="ckm" data-li="${li}" data-k="${k}" data-q="${qi}" data-i="${oi}" ${s2.ok || wait > 0 ? 'disabled' : ''}><span class="k">${pos + 1}</span><span>${it.o[oi]}</span></button>`; }).join('');
+    const fb = s2.ok ? `<div class="note good"><b>맞아요!</b>${it.e}</div>`
+      : s2.sel != null ? `<div class="note bad"><b>다시 생각해 보세요</b>${wait > 0 ? `${wait}초 뒤에 다시 고를 수 있어요. ` : '이제 다시 고를 수 있어요. '}${s2.wrong >= 2 ? '영상의 해당 부분을 다시 보고 오세요.' : ''}</div>` : '';
+    return `<div class="ck-item"><p class="ck-q">${qi + 1}. ${it.q}</p><div class="ck-opts">${opts}</div>${fb}</div>`;
+  }).join('');
+  return `<div class="card checkcard ${st.ok ? 'done' : ''}" id="checkWrap">${head}${inner}</div>`;
+}
+
+/* ---------- 영상 실제 시청 확인 (배포한 웹 앱 전용) ---------- */
+const VW = { player: null, timer: null, covered: new Set(), dur: 0, last: null, pct: 0, sentPct: 0, unavailable: false, rateWarn: false };
+function videoWatchOk(li) {
+  if (!REMOTE) return true;
+  const need = UI.set.videoWatch || 0; if (!need) return true;
+  const L = me().lessons[li];
+  return !!(L.watchSkip || VW.unavailable) || Math.max(L.watch || 0, VW.pct) >= need;
+}
+function loadYT() {
+  return new Promise((res, rej) => {
+    if (window.YT && window.YT.Player) return res();
+    const prev = window.onYouTubeIframeAPIReady;
+    window.onYouTubeIframeAPIReady = () => { if (prev) prev(); res(); };
+    if (!document.getElementById('ytapi')) { const s = document.createElement('script'); s.id = 'ytapi'; s.src = 'https://www.youtube.com/iframe_api'; s.onerror = () => rej(new Error('load')); document.head.appendChild(s); }
+    setTimeout(() => rej(new Error('timeout')), 15000);
+  });
+}
+function canReport() { const V = UI.lesson, s = me(); return V && V.mode === 'learn' && !s.done && curLesson(s) === V.li; }
+async function mountVideo() {
+  destroyVideo();
+  VW.covered = new Set(); VW.last = null; VW.pct = 0; VW.sentPct = 0; VW.dur = 0; VW.unavailable = false;
+  updWatch();
+  try { await loadYT(); } catch (e) { return videoUnavailable(); }
+  if (!document.getElementById('ytHost')) return;
+  VW.player = new YT.Player('ytHost', { videoId: VIDEO_ID, width: '100%', height: '100%',
+    playerVars: { rel: 0, playsinline: 1, modestbranding: 1 },
+    events: { onReady: () => { VW.dur = VW.player.getDuration() || 0; updWatch(); }, onError: () => videoUnavailable() } });
+  VW.timer = setInterval(trackTick, 1000);
+}
+function destroyVideo() { if (VW.timer) { clearInterval(VW.timer); VW.timer = null; } VW.player = null; }
+function trackTick() {
+  const p = VW.player; if (!p || !p.getPlayerState) return;
+  const before = videoWatchOk(1);
+  if (!VW.dur) VW.dur = p.getDuration() || 0;
+  const st = p.getPlayerState(), t = p.getCurrentTime ? p.getCurrentTime() : 0, rate = p.getPlaybackRate ? p.getPlaybackRate() : 1;
+  if (st === 1) {                          // 재생 중
+    VW.rateWarn = rate > 1.25;
+    if (!VW.rateWarn && VW.last != null && t >= VW.last && t - VW.last <= 2.5) for (let s = Math.floor(VW.last); s < Math.floor(t); s++) VW.covered.add(s);
+    VW.last = t;
+  } else if (st !== 3) VW.last = null;      // 버퍼링이 아니면 다시 측정
+  if (VW.dur > 0) VW.pct = Math.min(100, Math.round(VW.covered.size / Math.max(1, Math.floor(VW.dur) - 1) * 100));
+  updWatch(); maybeSend();
+  if (!before && videoWatchOk(1)) render();
+}
+function maybeSend() {
+  if (!canReport()) return;
+  const need = UI.set.videoWatch || 0;
+  if (VW.pct >= VW.sentPct + 10 || (VW.pct >= need && VW.sentPct < need)) {
+    VW.sentPct = VW.pct;
+    rawApi('watch', { li: UI.lesson.li, pct: VW.pct }).then(d => { UI.st = d.student; }).catch(() => {});
+  }
+}
+function updWatch() {
+  const el = document.getElementById('vwatch'); if (!el) return;
+  const need = UI.set.videoWatch || 0, L = me().lessons[1], best = Math.max(L.watch || 0, VW.pct);
+  if (VW.unavailable || L.watchSkip) { el.innerHTML = `<div class="note hint"><b>영상이 이 화면에서 재생되지 않아요</b><a href="${VIDEO_URL}" target="_blank" rel="noopener">YouTube에서 보기 ↗</a> 후 학습 확인 문제를 풀어 주세요. 이 경우 시청 비율은 확인하지 않아요.</div>`; return; }
+  if (!need) { el.innerHTML = ''; return; }
+  el.innerHTML = `<div class="row" style="gap:10px;margin-top:10px"><span class="small"><b>시청 ${best}%</b> / 필요 ${need}%</span><span class="progress" style="flex:1;min-width:120px"><i style="width:${Math.min(100, best / need * 100)}%;background:${best >= need ? 'var(--mint)' : 'var(--l2)'}"></i></span>${best >= need ? '<span class="chip ok">시청 완료</span>' : ''}</div>${VW.rateWarn ? '<p class="small" style="color:var(--red);margin-top:6px">1.25배보다 빠르게 보면 시청 시간에 들어가지 않아요. 보통 속도로 봐 주세요.</p>' : ''}`;
+}
+function videoUnavailable() {
+  VW.unavailable = true; destroyVideo(); updWatch();
+  if (canReport()) rawApi('watch', { li: UI.lesson.li, unavailable: true }).then(d => { UI.st = d.student; render(); }).catch(() => render()); else render();
+}
+function vLesson() {
+  const s = me(), V = UI.lesson, L = LESSONS[V.li], st = startOf(s), Ls = s.lessons[V.li];
+  const review = V.mode === 'review', ch = V.idx, isSummary = ch === -1;
+  const chap = isSummary ? null : L.chapters[ch];
+  const skipped = !review && st > 1;
+  const frontier = review ? N - 1 : Ls.ch - 1;
+  const g = gate(), waiting = g.gated && g.rem > 0;
+  const needCheck = g.gated && !review && !V.fromQuiz && !isSummary;
+  const checkOk = isSummary || checkPassed(V.li, ch);
+  const locked = waiting || (needCheck && !checkOk);
+  const toc = `<nav class="card toc" style="--lc:${LC[V.li]}"><p class="eyebrow">${V.li + 1}차시 · ${review ? '다시보기' : '학습'}</p>
+    <ol>${skipped ? `<li><button class="${isSummary ? 'cur' : ''}" data-a="go" data-i="-1"><span class="n">※</span>건너뛴 장 요약</button></li>` : ''}
+    ${L.chapters.map((c, k) => { const locked = k > frontier;
+      return `<li><button class="${k === ch ? 'cur' : ''} ${skipped && k + 1 < st ? 'skip' : ''} ${locked ? 'locked' : ''}" ${locked ? 'disabled' : ''} data-a="go" data-i="${k}"><span class="n">${locked ? ICON.lock : String(k + 1).padStart(2, '0')}</span>${c.title}</button></li>`; }).join('')}</ol></nav>`;
+  const body = isSummary
+    ? `<div class="card slide"><span class="kind">핵심 요약 · 1~${st - 1}장</span><h2>건너뛴 장, 이것만 알고 가요</h2>
+      <p class="muted">사전 퀴즈 결과에 따라 ${st}장부터 시작해요. 아래 내용은 퀴즈에도 나오니 꼭 읽어 보세요.</p>
+      <div class="stack">${L.chapters.slice(0, st - 1).map((c, k) => `<div class="summary-card"><span class="n">${String(k + 1).padStart(2, '0')}장 · ${c.kind}</span><b>${c.title}</b><span class="small">${c.sum}</span><span><button class="btn ghost sm" data-a="go" data-i="${k}">이 장 펼쳐 보기</button></span></div>`).join('')}</div></div>`
+    : `<div class="card slide"><span class="kind">${String(ch + 1).padStart(2, '0')}장 · ${chap.kind}</span><h2>${chap.title}</h2>${chap.html()}</div>${vCheck(V.li, ch, needCheck)}`;
+  const atEnd = ch === N - 1, fromQuiz = V.fromQuiz;
+  const nextBtn = atEnd ? '' : `<button class="ibtn main" data-a="next" aria-label="다음 장" title="다음 장" ${locked ? 'disabled' : ''}>${ICON.next}</button>`;
+  const quizBtn = atEnd && !review && !fromQuiz ? `<button class="btn go" data-a="startQuiz" ${locked ? 'disabled' : ''}>${V.li + 1}차시 퀴즈 풀기</button>` : '';
+  return topbar(whoBox()) + `
+  <div class="row" style="margin-bottom:14px"><button class="btn ghost sm" data-a="${fromQuiz ? 'backQuiz' : 'toHub'}">← ${fromQuiz ? '퀴즈로 돌아가기' : '학습 지도'}</button>
+    <div style="min-width:0"><b style="color:${LC[V.li]}">${V.li + 1}차시</b> <span>${L.title}</span></div></div>
+  ${ch === (skipped ? -1 : 0) && !review ? `<div class="banner" style="margin-bottom:12px"><b>학습 목표</b> · ${L.goal}</div>` : ''}
+  <div class="viewer">${toc}<div class="stage" style="--lc:${LC[V.li]}">${body}
+    <div class="card player">
+      <button class="ibtn" data-a="prev" aria-label="이전 장" ${(skipped ? ch <= -1 : ch <= 0) ? 'disabled' : ''}>${ICON.prev}</button>
+      <div class="bar" title="학습 시간"><i id="pbar"></i></div>
+      <span class="timer ${waiting ? 'wait' : g.gated ? (locked ? 'need' : 'ok') : ''}" id="cd">${g.gated ? (waiting ? `${ICON.clock}<span>${mmss(g.rem)}</span>` : locked ? '학습 확인 필요' : '열림') : isSummary ? '요약' : `${ch + 1}/${N}`}</span>
+      ${nextBtn}
+      <button class="ibtn" data-a="replay" aria-label="처음부터 다시보기" title="처음부터 다시보기">${ICON.replay}</button>
+      ${quizBtn}${atEnd && fromQuiz ? `<button class="btn go" data-a="backQuiz">퀴즈로 돌아가기</button>` : ''}
+    </div>
+    <p class="tiny muted" id="lessonHint" style="margin-top:8px">${needCheck ? `이 장을 최소 ${secLabel(g.total)} 동안 학습하고 ‘학습 확인’을 통과하면 ${atEnd ? '퀴즈가' : '다음 장이'} 열려요. 다음 장으로는 직접 눌러서 넘어가요.` : review ? '다시보기에서는 자유롭게 이동할 수 있어요.' : '이미 학습한 장이에요. 자유롭게 오갈 수 있어요.'}</p>
+  </div></div>`;
+}
+
+/* ---------------- 화면: 퀴즈 ---------------- */
+function vQuiz() {
+  const s = me(), Q = UI.quiz, li = Q.li, L = LESSONS[li], l = s.lessons[li];
+  if (Q.review) {
+    return topbar(whoBox()) + `<div class="qwrap stack" style="gap:16px">
+      <div class="row"><button class="btn ghost sm" data-a="toHub">← 학습 지도</button><span class="spacer"></span><span class="chip ok">${li + 1}차시 퀴즈 다시보기</span></div>
+      <h2>${L.title}</h2>
+      ${L.quiz.map((q, qi) => `<div class="card pad stack"><p class="eyebrow">문제 ${qi + 1}</p><p class="qtext" style="font-size:18px">${q.q}</p>
+        <div class="opts">${q.o.map((o, k) => `<button class="opt ${k === q.a ? 'right' : ''}" disabled><span class="k">${k + 1}</span><span>${o}</span></button>`).join('')}</div>
+        <div class="note exp"><b>해설</b>${q.e}</div></div>`).join('')}
+    </div>`;
+  }
+  const solved = Q.fb === 'right';
+  const qi = solved ? Q.solvedQi : l.qi, q = L.quiz[qi], wrong = l.wrong[qi] || 0, EA = UI.set.explainAfter;
+  const showExp = wrong >= EA || solved;
+  return topbar(whoBox()) + `<div class="qwrap stack" style="gap:18px">
+    <div class="row"><b style="color:${LC[li]}">${li + 1}차시 퀴즈</b><span class="muted">${L.title}</span><span class="spacer"></span><button class="btn ghost sm" data-a="reviewFromQuiz">자료 다시보기</button></div>
+    <div class="stack" style="gap:8px"><div class="row"><b class="mono">문제 ${qi + 1} / ${L.quiz.length}</b><span class="spacer"></span>
+      <span class="tries" title="이 문제 오답 횟수">${Array.from({ length: EA }, (_, k) => `<i class="${k < wrong ? 'on' : ''}"></i>`).join('')}<span class="tiny muted" style="margin-left:4px">오답 ${wrong}회</span></span></div>
+    <div class="progress"><i style="width:${(qi + (solved ? 1 : 0)) / L.quiz.length * 100}%;background:${LC[li]}"></i></div></div>
+    <div class="card pad stack ${Q.shake ? 'shake' : ''}" style="gap:18px"><p class="qtext">${q.q}</p>
+      <div class="opts">${q.o.map((o, k) => { let c = ''; if (solved && k === q.a) c = 'right'; else if (Q.fb === 'wrong' && Q.sel === k) c = 'wrong'; else if (Q.sel === k) c = 'sel';
+        return `<button class="opt ${c}" data-a="qSel" data-k="${k}" ${solved ? 'disabled' : ''}><span class="k">${k + 1}</span><span>${o}</span></button>`; }).join('')}</div>
+      ${Q.fb === 'wrong' ? `<div class="note bad" aria-live="polite"><b>아쉬워요, 다시 도전해 보세요</b>${wrong >= EA ? `오답이 ${EA}회 이상이라 아래에 해설을 열어 두었어요. 해설을 읽고 다시 골라 보세요.` : `힌트를 보거나 자료를 다시 보고 와도 좋아요. (해설은 오답 ${EA}회부터 열려요)`}</div>` : ''}
+      ${solved ? `<div class="note good" aria-live="polite"><b>정답이에요!</b>${qi < L.quiz.length - 1 ? '다음 문제로 넘어가요.' : '이 차시의 퀴즈를 모두 통과했어요.'}</div>` : ''}
+      ${Q.hint && !solved ? `<div class="note hint"><b>힌트</b>${q.h}</div>` : ''}
+      ${showExp ? `<div class="note exp"><b>해설</b>${q.e}</div>` : ''}
+    </div>
+    <div class="row">${!solved && !Q.hint ? `<button class="btn ghost" data-a="hint">힌트 보기</button>` : ''}<span class="spacer"></span>
+      ${solved ? `<button class="btn go" data-a="qNext">${qi < L.quiz.length - 1 ? '다음 문제' : (li < 2 ? `${li + 2}차시로 가기` : '이수 완료하기')}</button>` : `<button class="btn" data-a="qSubmit" ${Q.sel == null ? 'disabled' : ''}>제출하기</button>`}
+    </div>
+    <p class="tiny muted">규칙: 틀리면 몇 번이든 다시 도전할 수 있어요 · 힌트는 원할 때 열 수 있어요 · 같은 문제를 ${EA}회 이상 틀리면 해설이 열리고, 해설을 본 뒤에도 정답을 골라야 통과해요.</p>
+  </div>`;
+}
+function vLessonDone() {
+  const s = me(), li = UI.doneLi, L = LESSONS[li], l = s.lessons[li];
+  return topbar(whoBox()) + `<div class="qwrap"><div class="card cert">
+    <div class="seal" style="background:${LC[li]};box-shadow:0 0 0 10px var(--sunk)"><svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div>
+    <p class="eyebrow">${li + 1}차시 통과</p><h2>${L.title}</h2>
+    <p class="muted">퀴즈 제출 ${l.tries}회 · 힌트 ${l.hints}회 사용</p>
+    <div class="row" style="justify-content:center"><button class="btn ghost" data-a="toHub">학습 지도</button><button class="btn go" data-a="continue">${li + 2}차시 시작하기</button></div>
+  </div></div>`;
+}
+function vCert() {
+  const s = me();
+  return topbar(whoBox()) + `<div class="qwrap"><div class="card cert">
+    <div class="seal"><svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div>
+    <p class="eyebrow">이수 완료</p>
+    <h1 style="font-size:clamp(30px,5vw,44px)">인공지능 윤리 탐험을 마쳤어요</h1>
+    <p class="muted" style="max-width:30em">기술의 진보는 AI가 하지만, 그 기술이 향할 올바른 길을 선택하는 것은 결국 우리의 몫입니다.</p>
+    <dl class="dl" style="text-align:left;margin:6px 0"><dt>이름</dt><dd>${esc(s.name)} (${s.id})</dd><dt>수준</dt><dd>${s.pre.level}</dd><dt>퀴즈 제출</dt><dd>${s.lessons.map((l, i) => `${i + 1}차시 ${l.tries}회`).join(' · ')}</dd><dt>이수 일시</dt><dd class="mono">${fmt(s.doneAt)}</dd></dl>
+    <span class="chip ok">${REMOTE ? '구글 스프레드시트에 이수 기록 저장 완료' : '이수 기록 저장 완료 (데모: 브라우저 저장)'}</span>
+    <div class="row" style="justify-content:center"><button class="btn ghost" data-a="toHub">학습 지도에서 다시보기</button>${REMOTE ? '' : '<button class="btn" data-a="logout">로그아웃</button>'}</div>
+  </div></div>`;
+}
+
+/* ---------------- 화면: 교사(관리자·담임) ---------------- */
+const isAdmin = () => UI.me && UI.me.role === 'admin';
+function classesOf(list) { return [...new Set(list.map(s => s.cls))].sort((a, b) => a.localeCompare(b, 'ko', { numeric: true })); }
+function scoped() { const T = UI.t; return T.list.filter(s => T.cls === 'all' || s.cls === T.cls); }
+function vStaff() {
+  const T = UI.t, admin = isAdmin();
+  const tabsDef = admin ? [['list', '학생별 상태'], ['stats', '전체 통계'], ['manage', '학생 관리'], ['import', '일괄 등록'], ['perm', '권한·설정'], ['sheet', '스프레드시트']] : [['list', '학생별 상태'], ['stats', '전체 통계']];
+  const tabs = `<div class="tabs" role="tablist">${tabsDef.map(([k, n]) => `<button role="tab" class="${T.tab === k ? 'on' : ''}" data-a="tab" data-k="${k}">${n}</button>`).join('')}</div>`;
+  const cls = classesOf(T.list);
+  const showCls = ['list', 'stats', 'manage', 'sheet'].includes(T.tab) && cls.length > 1;
+  const ctrl = `<div class="row" style="margin:16px 0">${tabs}<span class="spacer"></span>
+    ${showCls ? `<select id="clsSel" data-in="cls" style="width:auto" aria-label="학급 선택"><option value="all">${admin ? '전체 학급' : '담당 학급 전체'}</option>${cls.map(c => `<option value="${esc(c)}" ${T.cls === c ? 'selected' : ''}>${esc(c.replace('-', '학년 '))}반</option>`).join('')}</select>` : ''}
+    <button class="btn soft sm" data-a="refresh">조회 새로고침</button><span class="tiny muted mono">조회 ${T.at ? fmt(T.at).slice(11) : '-'}</span></div>`;
+  const list = scoped();
+  const body = { list: () => tList(list), stats: () => tStats(list), manage: () => tManage(list), import: tImport, perm: tPerm, sheet: () => tSheet(list) }[T.tab]();
+  const title = admin ? 'AI 윤리 자율 학습 현황' : `${esc(Core.homeroomClasses(UI.me).map(c => c.replace('-', '학년 ') + '반').join(', '))} 학습 현황`;
+  return topbar(whoBox()) + `<div class="stack" style="gap:4px"><p class="eyebrow">${admin ? '관리자' : '담임'} 화면</p><h2>${title}</h2>
+    <p class="small muted">${admin ? '전체 학생을 조회하고, 학생·권한·학습 시간을 관리해요.' : '담당 학급 학생만 조회할 수 있어요.'} 실시간으로 갱신되지 않으니 필요할 때 ‘조회 새로고침’을 눌러 주세요.</p></div>${ctrl}${body}`;
+}
+function tList(list) {
+  const T = UI.t, f = T.filter;
+  const rows = list.filter(s => f === 'all' || (f === 'done' ? s.done : !s.done));
+  const sel = T.sel && T.list.find(s => s.id === T.sel);
+  return `<div class="row" style="margin-bottom:10px">${[['all', '전체'], ['undone', '미이수'], ['done', '이수']].map(([k, n]) => `<button class="btn ${f === k ? '' : 'ghost'} sm" data-a="filter" data-k="${k}">${n} ${k === 'all' ? list.length : k === 'done' ? list.filter(s => s.done).length : list.filter(s => !s.done).length}</button>`).join('')}</div>
+  <div class="split"><div class="card tablewrap" style="max-height:640px"><table><thead><tr><th>학번</th><th>이름</th><th>학급</th><th>수준</th><th>현재 단계</th><th>콘텐츠 위치</th><th>차시 진행</th><th>퀴즈 제출</th><th>최근 학습</th></tr></thead><tbody>
+  ${rows.map(s => `<tr class="${T.sel === s.id ? 'sel' : ''}" data-a="selStudent" data-id="${esc(s.id)}"><td class="mono">${esc(s.id)}</td><td><b>${esc(s.name)}</b></td><td>${esc(s.cls)}</td><td>${s.pre.level || '–'}</td><td>${stageChip(s)}</td><td>${contentText(s)}</td>
+    <td><span class="lmini">${s.lessons.map((l, i) => `<i class="${l.done ? 'd' : (s.pre.done && !s.done && curLesson(s) === i ? 'p' : '')}" title="${i + 1}차시"></i>`).join('')}</span></td><td class="mono">${totalTries(s)}</td><td class="mono tiny">${s.lastSeen ? fmt(s.lastSeen).slice(5) : '–'}</td></tr>`).join('') || `<tr><td colspan="9" class="muted">학생이 없어요.</td></tr>`}
+  </tbody></table></div>
+  <aside class="card detail">${sel ? tDetail(sel) : `<p class="eyebrow">학생 상세</p><p class="muted small">표에서 학생을 누르면 차시별 장 위치, 퀴즈 제출 횟수, 완료 여부를 볼 수 있어요.</p>`}</aside></div>`;
+}
+function tDetail(s) {
+  return `<div class="row"><span class="avatar">${esc(s.name.slice(-2))}</span><div style="line-height:1.3;min-width:0"><b>${esc(s.name)}</b><br><span class="tiny muted mono">${esc(s.id)} · ${esc(s.email)}</span></div></div>
+  <dl class="dl"><dt>학급</dt><dd>${esc(s.cls)}</dd><dt>현재 단계</dt><dd>${stageText(s)}</dd><dt>콘텐츠 위치</dt><dd>${contentText(s)}</dd><dt>사전 퀴즈</dt><dd>${s.pre.done ? `${s.pre.score}/6점 · 수준 ${s.pre.level}` : '미응시'}</dd><dt>2차시 영상</dt><dd>${s.lessons[1].watchSkip ? '화면 재생 불가 · 시간으로 대체' : (s.lessons[1].watch || 0) + '% 시청'}</dd><dt>이수</dt><dd>${s.done ? `완료 · <span class="mono">${fmt(s.doneAt)}</span>` : '미이수'}</dd></dl>
+  <div class="tablewrap"><table><thead><tr><th>차시</th><th>현재 장</th><th>퀴즈 제출</th><th>힌트</th><th>퀴즈 완료</th></tr></thead><tbody>
+  ${s.lessons.map((l, i) => `<tr style="cursor:default"><td><b style="color:${LC[i]}">${i + 1}차시</b></td><td class="mono">${l.ch ? `${l.ch}/${N}` : '–'}</td><td class="mono">${l.tries}</td><td class="mono">${l.hints}</td><td>${l.done ? '<span class="chip ok">완료</span>' : '<span class="chip">미완료</span>'}</td></tr>`).join('')}
+  </tbody></table></div>
+  ${isAdmin() ? `<div class="row"><button class="btn soft sm" data-a="editStudent" data-id="${esc(s.id)}">정보 수정</button><button class="btn ghost sm" data-a="askResetStudent" data-id="${esc(s.id)}">기록 초기화</button><button class="btn ghost sm danger" data-a="askDeleteStudent" data-id="${esc(s.id)}">삭제</button></div>` : ''}`;
+}
+function tStats(list) {
+  const done = list.filter(s => s.done), und = list.filter(s => !s.done);
+  const rate = list.length ? Math.round(done.length / list.length * 100) : 0;
+  const buckets = [['사전 퀴즈 전', s => !s.pre.done, 'var(--ink-3)']];
+  [0, 1, 2].forEach(i => buckets.push([`${i + 1}차시 진행 중`, s => s.pre.done && !s.done && curLesson(s) === i, LC[i]]));
+  buckets.push(['이수 완료', s => s.done, 'var(--mint)']);
+  const max = Math.max(1, ...buckets.map(b => list.filter(b[1]).length));
+  const lv = ['상', '중', '하'].map(k => [k, list.filter(s => s.pre.level === k).length]);
+  const cls = classesOf(list);
+  return `<div class="kpis">
+    <div class="card kpi"><div class="l">전체 인원</div><div class="v mono">${list.length}</div></div>
+    <div class="card kpi"><div class="l">이수 인원</div><div class="v mono" style="color:var(--mint)">${done.length}</div></div>
+    <div class="card kpi"><div class="l">미이수 인원</div><div class="v mono" style="color:var(--red)">${und.length}</div></div>
+    <div class="card kpi"><div class="l">이수율</div><div class="v mono">${rate}<span style="font-size:22px">%</span></div></div>
+  </div>
+  <div class="split" style="margin-top:14px">
+    <div class="card pad stack"><div class="row"><h3>미이수 명단</h3><span class="chip bad">${und.length}명</span><span class="spacer"></span><button class="btn soft sm" data-a="copyUndone">명단 복사</button></div>
+      <div class="tablewrap"><table><thead><tr><th>학번</th><th>이름</th><th>학급</th><th>현재 단계</th><th>콘텐츠 위치</th></tr></thead><tbody>
+      ${und.map(s => `<tr data-a="jump" data-id="${esc(s.id)}"><td class="mono">${esc(s.id)}</td><td><b>${esc(s.name)}</b></td><td>${esc(s.cls)}</td><td>${stageChip(s)}</td><td>${contentText(s)}</td></tr>`).join('') || '<tr><td colspan="5" class="muted">미이수 학생이 없어요.</td></tr>'}
+      </tbody></table></div></div>
+    <div class="stack">
+      ${cls.length > 1 ? `<div class="card pad stack"><h3>학급별 이수율</h3><div class="dist">${cls.map(c => { const a = list.filter(s => s.cls === c), d = a.filter(s => s.done).length; const p = Math.round(d / a.length * 100); return `<div class="r"><span>${esc(c)}</span><span class="track"><i style="width:${p}%;background:var(--mint)"></i></span><b class="mono">${p}%</b></div>`; }).join('')}</div></div>` : ''}
+      <div class="card pad stack"><h3>단계별 인원</h3><div class="dist">${buckets.map(b => { const n = list.filter(b[1]).length; return `<div class="r"><span>${b[0]}</span><span class="track"><i style="width:${n / max * 100}%;background:${b[2]}"></i></span><b class="mono">${n}</b></div>`; }).join('')}</div></div>
+      <div class="card pad stack"><h3>사전 퀴즈 수준</h3><div class="dist">${lv.map(([k, n], i) => `<div class="r"><span>수준 ${k} (${Core.startOf(UI.set, k)}장~)</span><span class="track"><i style="width:${n / max * 100}%;background:${LC[i]}"></i></span><b class="mono">${n}</b></div>`).join('')}</div></div>
+    </div>
+  </div>`;
+}
+function tManage(list) {
+  return `<div class="row" style="margin-bottom:10px"><span class="small muted">${list.length}명</span><span class="spacer"></span><button class="btn sm" data-a="addStudent">+ 학생 추가</button></div>
+  <div class="card tablewrap" style="max-height:640px"><table><thead><tr><th>학번</th><th>이름</th><th>구글 계정(이메일)</th><th>학급</th><th>현재 단계</th><th></th></tr></thead><tbody>
+  ${list.map(s => `<tr style="cursor:default"><td class="mono">${esc(s.id)}</td><td><b>${esc(s.name)}</b></td><td class="mono tiny">${esc(s.email)}</td><td>${esc(s.cls)}</td><td>${stageChip(s)}</td>
+    <td><div class="row" style="gap:6px;flex-wrap:nowrap"><button class="btn soft sm" data-a="editStudent" data-id="${esc(s.id)}">수정</button><button class="btn ghost sm" data-a="askResetStudent" data-id="${esc(s.id)}">기록 초기화</button><button class="btn ghost sm danger" data-a="askDeleteStudent" data-id="${esc(s.id)}">삭제</button></div></td></tr>`).join('') || `<tr><td colspan="6" class="muted">등록된 학생이 없어요. ‘일괄 등록’에서 한 번에 등록할 수 있어요.</td></tr>`}
+  </tbody></table></div>`;
+}
+function tImport() {
+  const T = UI.t, imp = T.imp;
+  let preview = '';
+  if (imp) {
+    const ids = {}, emails = {};
+    const rows = imp.rows.map(r => {
+      const v = Core.validateIdentity(r); const errs = v.errors.slice();
+      if (ids[v.value.id]) errs.push('파일 안에서 학번 중복'); if (emails[v.value.email]) errs.push('파일 안에서 이메일 중복');
+      ids[v.value.id] = 1; emails[v.value.email] = 1;
+      const ex = T.list.find(s => s.id === v.value.id);
+      const other = T.list.find(s => s.email === v.value.email && s.id !== v.value.id);
+      if (other) errs.push(`이메일이 ${other.id}와 겹침`);
+      return { ...v.value, _line: r._line, errs, status: errs.length ? '오류' : ex ? '갱신' : '신규' };
+    });
+    const ok = rows.filter(r => !r.errs.length);
+    T.impRows = ok;
+    const c = k => rows.filter(r => r.status === k).length;
+    preview = `<div class="card pad stack"><div class="row"><h3>미리보기</h3><span class="chip info">신규 ${c('신규')}</span><span class="chip warn">갱신 ${c('갱신')}</span><span class="chip bad">오류 ${c('오류')}</span><span class="spacer"></span><button class="btn ghost sm" data-a="clearImport">지우기</button><button class="btn go sm" data-a="doImport" ${ok.length ? '' : 'disabled'}>${ok.length}명 등록하기</button></div>
+      ${imp.errors.length ? `<div class="note bad"><b>읽기 오류</b>${imp.errors.map(esc).join('<br>')}</div>` : ''}
+      <p class="small muted">학번이 이미 있으면 이름·이메일·학급만 바꾸고 학습 기록은 그대로 둬요. 오류 행은 등록하지 않아요.</p>
+      <div class="tablewrap" style="max-height:420px"><table><thead><tr><th>행</th><th>상태</th><th>학번</th><th>이름</th><th>이메일</th><th>학급</th><th>확인할 점</th></tr></thead><tbody>
+      ${rows.map(r => `<tr style="cursor:default"><td class="mono tiny">${r._line}</td><td><span class="chip ${r.status === '오류' ? 'bad' : r.status === '갱신' ? 'warn' : 'info'}">${r.status}</span></td><td class="mono">${esc(r.id)}</td><td>${esc(r.name)}</td><td class="mono tiny">${esc(r.email)}</td><td>${esc(r.cls)}</td><td class="small" style="color:var(--red);white-space:normal">${r.errs.map(esc).join(', ')}</td></tr>`).join('')}
+      </tbody></table></div></div>`;
+  }
+  const res = T.impResult ? `<div class="note good"><b>등록 결과</b>신규 ${T.impResult.added}명 · 갱신 ${T.impResult.updated}명${T.impResult.errors.length ? ` · 제외 ${T.impResult.errors.length}건<br><span class="small">${T.impResult.errors.map(esc).join('<br>')}</span>` : ''}</div>` : '';
+  return `<div class="stack" style="gap:14px">${res}
+  <div class="grid2" style="align-items:start">
+    <div class="card pad stack"><p class="eyebrow">방법 1</p><h3>구글 스프레드시트에서 불러오기</h3>
+      <p class="small muted">학생 명단이 있는 스프레드시트 주소를 넣으세요. 관리자(웹 앱 소유자)가 열람할 수 있는 파일이어야 해요.</p>
+      <label class="fld" for="impUrl"><span>스프레드시트 주소</span><input type="text" id="impUrl" placeholder="https://docs.google.com/spreadsheets/d/…" value="${esc(T.impUrl || '')}"></label>
+      <label class="fld" for="impTab"><span>탭 이름 (비우면 첫 번째 탭)</span><input type="text" id="impTab" placeholder="예: 1학년 명단" value="${esc(T.impTab || '')}"></label>
+      <div class="row"><button class="btn sm" data-a="previewUrl">불러오기</button><button class="btn ghost sm" data-a="previewOwn">앱 시트의 ‘등록양식’ 탭 불러오기</button></div>
+      ${REMOTE ? '' : `<p class="tiny muted">데모 화면에서는 이 방법이 동작하지 않아요. 배포한 웹 앱에서 사용하세요.</p>`}
+    </div>
+    <div class="card pad stack"><p class="eyebrow">방법 2</p><h3>복사해서 붙여넣기</h3>
+      <p class="small muted">스프레드시트에서 머리글을 포함해 범위를 복사(Ctrl+C)한 뒤 아래에 붙여넣으세요.</p>
+      <textarea id="impPaste" placeholder="학번&#9;이름&#9;이메일&#9;학급">${esc(T.impPaste || '')}</textarea>
+      <div class="row"><button class="btn sm" data-a="previewPaste">미리보기</button><button class="btn ghost sm" data-a="sampleImport">예시 넣어 보기</button></div>
+    </div>
+  </div>
+  <div class="banner"><b>명단 양식</b> · 머리글: <span class="mono">학번 | 이름 | 이메일 | 학급</span> (학급은 <span class="mono">1-3</span> 또는 <span class="mono">1학년 3반</span>). ‘학년’과 ‘반’이 따로 있어도 읽을 수 있어요. 이메일은 학생이 로그인할 학교 구글 계정이에요.</div>
+  ${preview}</div>`;
+}
+function tPerm() {
+  const T = UI.t, set = UI.set;
+  const fields = Object.keys(Core.SETTING_INFO);
+  return `<div class="grid2" style="align-items:start">
+    <div class="card pad stack"><div class="row"><h3>교사 권한</h3><span class="spacer"></span><button class="btn sm" data-a="addUser">+ 권한 추가</button></div>
+      <p class="small muted">관리자는 전체 학생 조회와 모든 관리를, 담임은 담당 학급 조회만 할 수 있어요.</p>
+      <div class="tablewrap"><table><thead><tr><th>역할</th><th>이름</th><th>이메일</th><th>담당 학급</th><th></th></tr></thead><tbody>
+      ${T.users.map(u => `<tr style="cursor:default"><td><span class="chip ${u.role === '관리자' ? 'bad' : 'warn'}">${esc(u.role)}</span></td><td>${esc(u.name)}</td><td class="mono tiny">${esc(u.email)}</td><td>${esc(u.cls || '–')}</td>
+        <td><div class="row" style="gap:6px;flex-wrap:nowrap"><button class="btn soft sm" data-a="editUser" data-email="${esc(u.email)}">수정</button>${u.email === UI.me.email ? '' : `<button class="btn ghost sm danger" data-a="askDeleteUser" data-email="${esc(u.email)}">삭제</button>`}</div></td></tr>`).join('')}
+      </tbody></table></div></div>
+    <div class="card pad stack"><h3>학습 시간 · 규칙 설정</h3>
+      <p class="small muted">학생은 각 장에서 아래 시간이 지나야 다음 장(마지막 장은 퀴즈)으로 넘어갈 수 있어요. 시간은 서버 기준으로 확인해 새로고침으로 건너뛸 수 없어요.</p>
+      <div class="setgrid">${fields.map(k => `<label class="fld" for="set_${k}"><span>${Core.SETTING_INFO[k][0]}</span><input type="number" id="set_${k}" min="${Core.SETTING_INFO[k][1]}" max="${Core.SETTING_INFO[k][2]}" value="${set[k]}"></label>`).join('')}</div>
+      <div class="row"><span class="tiny muted">한 차시 최소 시간(하 수준 기준): 약 ${Math.ceil((set.chapterSec * 6 + set.videoSec) / 60)}분</span><span class="spacer"></span><button class="btn sm" data-a="saveSettings">설정 저장</button></div>
+    </div></div>`;
+}
+function tSheet(list) {
+  const cols = Core.STUDENT_HEADERS.slice(0, 20);
+  return `<div class="banner" style="margin-bottom:12px">‘학생’ 시트와 같은 학생 1행 구조예요. ${REMOTE ? '' : '데모에서는 브라우저에 저장돼요.'}</div>
+  <div class="row" style="margin-bottom:10px"><span class="small muted">${list.length}행 × ${cols.length}열</span><span class="spacer"></span>${REMOTE && UI.t.sheetUrl ? `<a class="btn sm" href="${esc(UI.t.sheetUrl)}" target="_blank" rel="noopener">스프레드시트 열기 ↗</a>` : ''}<button class="btn soft sm" data-a="copySheet">복사 (TSV)</button></div>
+  <div class="card tablewrap" style="max-height:600px"><table class="sheet"><thead><tr><th></th>${cols.map((c, i) => `<th>${String.fromCharCode(65 + i)}<br>${c}</th>`).join('')}</tr></thead><tbody>
+  ${list.map((s, r) => `<tr><th>${r + 2}</th>${Core.toRow(s).slice(0, 20).map(v => `<td>${esc(v)}</td>`).join('')}</tr>`).join('')}
+  </tbody></table></div>
+  ${REMOTE ? '' : `<div class="row" style="margin-top:14px"><span class="spacer"></span><button class="btn ghost sm" data-a="askDemoReset">데모 데이터 초기화</button></div>`}`;
+}
+
+/* ---------------- 모달 ---------------- */
+function vModal() {
+  const M = UI.modal; if (!M) return '';
+  if (M === 'picker') return vPicker();
+  const wrap = (inner, label) => `<div class="scrim" data-a="closeModal"><div class="modal" role="dialog" aria-label="${esc(label || '')}"><header class="stack">${inner}</header></div></div>`;
+  if (M.kind === 'confirm') return wrap(`<h3>${M.title}</h3><p class="small muted">${M.body}</p>
+    <div class="row"><span class="spacer"></span><button class="btn ghost sm" data-a="closeModal">취소</button><button class="btn sm ${M.danger ? 'bg-danger' : ''}" data-a="confirmOk">${M.ok}</button></div>`, M.title);
+  if (M.kind === 'copy') return wrap(`<h3>아래 내용을 복사하세요</h3><p class="small muted">자동 복사가 막혀 있어요. 전체 선택 후 복사(Ctrl+C)하세요.</p><textarea id="copyBox" readonly style="min-height:180px;font-family:var(--mono);font-size:12px">${esc(M.text)}</textarea><div class="row"><span class="spacer"></span><button class="btn sm" data-a="closeModal">닫기</button></div>`);
+  if (M.kind === 'student') { const v = M.vals;
+    return wrap(`<h3>${M.orig ? '학생 정보 수정' : '학생 추가'}</h3>
+      ${['id:학번', 'name:이름', 'email:구글 계정(이메일)', 'cls:학급 (예: 1-3)'].map(x => { const [k, l] = x.split(':'); return `<label class="fld" for="f_${k}"><span>${l}</span><input type="text" id="f_${k}" value="${esc(v[k] || '')}"></label>`; }).join('')}
+      ${M.orig ? '<p class="tiny muted">학습 기록은 그대로 유지돼요.</p>' : ''}
+      ${M.err ? `<div class="note bad"><b>저장하지 못했어요</b>${esc(M.err)}</div>` : ''}
+      <div class="row"><span class="spacer"></span><button class="btn ghost sm" data-a="closeModal">취소</button><button class="btn sm" data-a="saveStudent">저장</button></div>`, '학생 정보'); }
+  if (M.kind === 'user') { const v = M.vals;
+    return wrap(`<h3>${M.orig ? '권한 수정' : '권한 추가'}</h3>
+      <label class="fld" for="u_email"><span>구글 계정(이메일)</span><input type="text" id="u_email" value="${esc(v.email || '')}"></label>
+      <label class="fld" for="u_name"><span>이름</span><input type="text" id="u_name" value="${esc(v.name || '')}"></label>
+      <label class="fld" for="u_role"><span>역할</span><select id="u_role" data-in="urole"><option ${v.role === '담임' ? 'selected' : ''}>담임</option><option ${v.role === '관리자' ? 'selected' : ''}>관리자</option></select></label>
+      <label class="fld" for="u_cls" ${v.role === '관리자' ? 'hidden' : ''} id="u_cls_wrap"><span>담당 학급 (여러 반은 쉼표로: 1-1, 1-2)</span><input type="text" id="u_cls" value="${esc(v.cls || '')}"></label>
+      ${M.err ? `<div class="note bad"><b>저장하지 못했어요</b>${esc(M.err)}</div>` : ''}
+      <div class="row"><span class="spacer"></span><button class="btn ghost sm" data-a="closeModal">취소</button><button class="btn sm" data-a="saveUser">저장</button></div>`, '권한'); }
+  return '';
+}
+
+/* ---------------- 렌더 ---------------- */
+let ticker = null;
+let lastLessonKey = null;
+function render() {
+  stopTicker();
+  const v = { boot: vBoot, noemail: vNoEmail, unregistered: vUnregistered, login: vLogin, pre: vPre, preResult: vPreResult, hub: vHub, lesson: vLesson, quiz: vQuiz, lessonDone: vLessonDone, cert: vCert, staff: vStaff, confirm: vConfirm }[UI.screen];
+  const app = document.getElementById('app');
+  const V = UI.lesson, key = UI.screen === 'lesson' ? V.li + '-' + V.idx + '-' + V.mode : null;
+  const isVideo = !!(key && REMOTE && Core.VIDEO_CH[V.li + '-' + V.idx]);
+  if (isVideo && key === lastLessonKey && document.getElementById('ytWrap')) {
+    // 같은 영상 장: 영상은 그대로 두고 나머지 부분만 바꿔 재생이 끊기지 않게 함
+    const tmp = document.createElement('div'); tmp.innerHTML = v();
+    ['.toc', '#checkWrap', '.player', '#lessonHint', '.top'].forEach(sel => { const a = app.querySelector(sel), b = tmp.querySelector(sel); if (a && b) a.replaceWith(b); });
+    updWatch();
+  } else {
+    if (lastLessonKey && Core.VIDEO_CH[lastLessonKey.split('-').slice(0, 2).join('-')]) destroyVideo();
+    app.innerHTML = v();
+    lastLessonKey = key;
+    if (isVideo) mountVideo();
+  }
+  document.getElementById('layer').innerHTML = vModal();
+  if (UI.screen === 'lesson') startTicker();
+  if (UI.quiz) UI.quiz.shake = false;
+}
+function toast(m, bad) { document.querySelectorAll('.toast').forEach(x => x.remove()); const d = document.createElement('div'); d.className = 'toast' + (bad ? ' bad' : ''); d.textContent = m; document.body.appendChild(d); setTimeout(() => d.remove(), bad ? 3600 : 1900); }
+function copyText(t, msg) {
+  const fallback = () => { UI.modal = { kind: 'copy', text: t }; render(); const b = document.getElementById('copyBox'); if (b) { b.focus(); b.select(); } };
+  try { navigator.clipboard.writeText(t).then(() => toast(msg || '복사했어요'), fallback); } catch (e) { fallback(); }
+}
+
+/* 학습 시간 표시 (자동 넘김 없음) */
+function startTicker() {
+  const V = UI.lesson; V.viewStart = V.viewStart || Date.now();
+  let wasWaiting = gate().gated && gate().rem > 0;
+  ticker = setInterval(() => {
+    const g = gate(), bar = document.getElementById('pbar'), cd = document.getElementById('cd');
+    let pct;
+    if (g.gated) {
+      pct = g.total ? (g.total - g.rem) / g.total : 1;
+      if (cd && g.rem > 0) cd.innerHTML = `${ICON.clock}<span>${mmss(g.rem)}</span>`;
+      if (wasWaiting && g.rem === 0) { wasWaiting = false; render(); return; }
+    } else pct = 1;
+    if (bar) bar.style.width = Math.round(pct * 100) + '%';
+  }, 250);
+}
+function stopTicker() { if (ticker) { clearInterval(ticker); ticker = null; } }
+function gotoCh(i) { const V = UI.lesson; V.idx = i; V.viewStart = Date.now(); render(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+
+/* ---------------- 흐름 ---------------- */
+function vConfirm() {
+  const m = UI.me, staff = m.role !== 'student';
+  const roleName = { admin: '관리자', homeroom: '담임 교사', student: '학생' }[m.role];
+  const detail = m.role === 'student' ? `${esc(m.cls)} · 학번 ${esc(m.id)}` : m.role === 'homeroom' ? `담당 학급 ${esc(m.cls)}` : '전체 학생 관리';
+  return topbar('') + `<div class="center-note card pad stack confirm" style="gap:16px">
+    <p class="eyebrow">본인 확인</p>
+    <div class="row" style="gap:16px;align-items:center"><span class="avatar big ${staff ? 'staff' : ''}">${avatarText(m)}</span>
+      <div style="min-width:0"><h2>${esc(m.name)} ${staff ? '' : '학생'}</h2><p class="muted">${roleName} · ${detail}</p></div></div>
+    <div class="banner">로그인한 구글 계정: <b class="mono">${esc(m.email)}</b></div>
+    <p class="muted">${staff ? '이 계정으로 교사 화면에 들어갈까요?' : '본인이 맞나요? 다른 친구의 계정이면 학습 기록이 그 친구 이름으로 저장돼요.'}</p>
+    <div class="row"><button class="btn go" data-a="confirmYes">네, 제 계정이에요${staff ? '' : ' · 학습 시작'}</button>
+      ${REMOTE ? `<a class="btn ghost" href="${esc(switchUrl())}" target="_top">아니에요, 계정 바꾸기</a>` : `<button class="btn ghost" data-a="logout">아니에요, 계정 바꾸기</button>`}</div>
+    ${REMOTE ? '<p class="tiny muted">‘계정 바꾸기’를 누르면 구글 계정 선택 화면으로 이동해요. 공용 컴퓨터라면 앞 사람 계정에서 로그아웃한 뒤 내 학교 계정으로 로그인하세요.</p>' : ''}
+  </div>`;
+}
+function switchUrl() { return 'https://accounts.google.com/AccountChooser?continue=' + encodeURIComponent(UI.appUrl || ''); }
+function routeByRole() {
+  const m = UI.me;
+  if (!UI.confirmed && m.role !== 'none') { UI.screen = 'confirm'; return; }
+  if (m.role === 'admin' || m.role === 'homeroom') { UI.screen = 'staff'; UI.t = { tab: 'list', cls: 'all', filter: 'all', sel: null, list: [], users: [], at: null, sheetUrl: '', imp: null, impResult: null }; return loadList(); }
+  if (m.role === 'student') { if (!UI.st.pre.done) { UI.pre = { i: 0, ans: [] }; UI.screen = 'pre'; } else UI.screen = 'hub'; return; }
+  UI.screen = 'unregistered';
+}
+async function boot(force) {
+  let d;
+  const pre = window.__BOOT; window.__BOOT = null;
+  if (pre && typeof pre === 'object') {   // 서버가 페이지에 미리 넣어 준 첫 화면 데이터
+    if (pre.now) clockOff = pre.now - Date.now();
+    if (pre.ok) d = pre.data;
+    else if (pre.error === 'NOEMAIL') { UI.screen = 'noemail'; render(); return; }
+    else { window.__showErr('서버 오류: ' + pre.error); return; }
+  } else d = await run('bootstrap', {}, { force });
+  if (!d) { if (UI.screen === 'boot') { if (REMOTE) { if (UI.screen === 'boot' && UI.bootErr) { window.__showErr(UI.bootErr); return; } UI.screen = 'noemail'; } else UI.screen = 'login'; } render(); return; }
+  UI.me = d.me; UI.set = d.settings; UI.st = d.student || null; UI.appUrl = d.appUrl || ''; UI.confirmed = false;
+  await routeByRole(); render();
+}
+async function loadList() {
+  const d = await run('list', {}, { force: true }); if (!d) return;
+  const T = UI.t; T.list = d.students; T.users = d.users || []; UI.set = d.settings; T.at = Date.now(); T.sheetUrl = d.sheetUrl || '';
+  if (T.sel && !T.list.find(s => s.id === T.sel)) T.sel = null;
+}
+async function openLesson(li, mode, fromQuiz) {
+  if (mode === 'learn' && !fromQuiz) { const d = await run('enter', { li }); if (!d) return; UI.st = d.student; }
+  const s = me(), st = startOf(s), l = s.lessons[li];
+  let idx = 0;
+  if (mode === 'learn') idx = fromQuiz ? N - 1 : (l.ch === st && st > 1 ? -1 : l.ch - 1);
+  UI.lesson = { li, idx, mode, playing: false, fromQuiz: !!fromQuiz, viewStart: Date.now() }; UI.screen = 'lesson';
+}
+async function continueFlow() {
+  const s = me();
+  if (!s.pre.done) { UI.pre = { i: 0, ans: [] }; UI.screen = 'pre'; return; }
+  if (s.done) { UI.screen = 'cert'; return; }
+  const li = curLesson(s);
+  if (s.stage === 'quiz') { UI.quiz = { li, sel: null, fb: null, hint: false }; UI.screen = 'quiz'; }
+  else await openLesson(li, 'learn');
+}
+function readForm(prefix, keys) { const o = {}; keys.forEach(k => { const el = document.getElementById(prefix + k); o[k] = el ? el.value : ''; }); return o; }
+function confirmBox(o) { UI.modal = Object.assign({ kind: 'confirm' }, o); }
+
+const A = {
+  openPicker() { UI.modal = 'picker'; },
+  async confirmYes() { UI.confirmed = true; await routeByRole(); },
+  closeModal() { UI.modal = null; },
+  async demoLogin(d) { UI.modal = null; UI.demoEmail = d.email; await boot(true); return 'noRender'; },
+  logout() { UI.confirmed = false; UI.me = null; UI.st = null; UI.demoEmail = null; UI.screen = 'login'; UI.lesson = null; UI.quiz = null; },
+  preSel(d) { UI.pre.ans[UI.pre.i] = +d.k; },
+  prePrev() { UI.pre.i--; },
+  async preNext() { const P = UI.pre; if (P.i < PREQUIZ.length - 1) { P.i++; return; }
+    const sc = PREQUIZ.reduce((a, q, i) => a + (P.ans[i] === q.a ? 1 : 0), 0);
+    const d = await run('pre', { score: sc }); if (!d) return; UI.st = d.student; UI.screen = 'preResult'; },
+  toHub() { UI.screen = 'hub'; UI.lesson = null; UI.quiz = null; },
+  continue: () => continueFlow(),
+  cert() { UI.screen = 'cert'; },
+  review: d => openLesson(+d.i, 'review'),
+  quizReview(d) { UI.quiz = { li: +d.i, review: true }; UI.screen = 'quiz'; },
+  go(d) { gotoCh(+d.i); return 'noRender'; },
+  prev() { const V = UI.lesson; const min = (V.mode === 'learn' && startOf(me()) > 1) ? -1 : 0; if (V.idx > min) gotoCh(V.idx - 1); return 'noRender'; },
+  async next() {
+    const V = UI.lesson, s = me();
+    if (V.idx === -1) { gotoCh(Math.max(0, s.lessons[V.li].ch - 1)); return 'noRender'; }
+    if (V.idx >= N - 1) return 'noRender';
+    const L = s.lessons[V.li];
+    if (V.mode === 'learn' && !V.fromQuiz && V.idx === L.ch - 1) {
+      if (!checkPassed(V.li, V.idx)) { toast('먼저 ‘학습 확인’을 통과해 주세요'); return 'noRender'; }
+      const d = await run('advance', { li: V.li, to: L.ch + 1 }); if (!d) { render(); return 'noRender'; }
+      UI.st = d.student;
+    }
+    gotoCh(V.idx + 1); return 'noRender';
+  },
+  ck(d) { const c = LESSONS[+d.li].chapters[+d.k].check; ACT.chk[ckKey(d.li, d.k)] = { sel: +d.i, ok: +d.i === c.a }; },
+  ckm(d) {
+    const c = LESSONS[+d.li].chapters[+d.k].check, st = multiState(+d.li, +d.k, c), qi = +d.q, s2 = st.items[qi], it = c.items[qi];
+    if (s2.ok || s2.until > Date.now()) return 'noRender';
+    s2.sel = +d.i; s2.ok = +d.i === it.a;
+    if (!s2.ok) { s2.wrong++; s2.until = Date.now() + CK_WAIT * 1000; setTimeout(() => { if (UI.screen === 'lesson') render(); }, CK_WAIT * 1000 + 100); }
+    st.ok = st.items.every(x => x.ok);
+  },
+  ckTask(d) { const c = LESSONS[+d.li].chapters[+d.k].check; ACT.chk[ckKey(d.li, d.k)] = { ok: !!c.test(), tried: true }; },
+  replay() { const V = UI.lesson; V.playing = false; gotoCh(0); return 'noRender'; },
+  async startQuiz() { const li = UI.lesson.li; if (!checkPassed(li, N - 1)) { toast('먼저 ‘학습 확인’을 통과해 주세요'); return 'noRender'; } const d = await run('startQuiz', { li }); if (!d) return; UI.st = d.student; UI.quiz = { li, sel: null, fb: null, hint: false }; UI.screen = 'quiz'; },
+  reviewFromQuiz() { UI.savedQuiz = UI.quiz; return openLesson(UI.quiz.li, 'learn', true); },
+  backQuiz() { UI.quiz = UI.savedQuiz || { li: UI.lesson.li, sel: null, fb: null, hint: false }; UI.screen = 'quiz'; },
+  qSel(d) { const Q = UI.quiz; Q.sel = +d.k; if (Q.fb === 'wrong') Q.fb = null; },
+  async hint() { const d = await run('hint', { li: UI.quiz.li }); if (!d) return; UI.st = d.student; UI.quiz.hint = true; },
+  async qSubmit() {
+    const Q = UI.quiz, l = me().lessons[Q.li], qi = l.qi, q = LESSONS[Q.li].quiz[qi], correct = Q.sel === q.a;
+    const d = await run('answer', { li: Q.li, correct }); if (!d) return; UI.st = d.student;
+    if (correct) { Q.fb = 'right'; Q.solvedQi = qi; } else { Q.fb = 'wrong'; Q.shake = true; }
+  },
+  qNext() { const Q = UI.quiz, s = me(), l = s.lessons[Q.li];
+    if (!l.done) { UI.quiz = { li: Q.li, sel: null, fb: null, hint: false }; return; }
+    UI.quiz = null;
+    if (s.done) UI.screen = 'cert'; else { UI.doneLi = Q.li; UI.screen = 'lessonDone'; } },
+  video() { const V = UI.lesson; if (V) V.playing = false; return 'pass'; },
+  sig(d) { ACT.sig[d.i] = d.c; }, ds(d) { ACT.ds = d.k; }, gear(d) { ACT.gear = +d.i; ACT.gearSeen[d.i] = 1; }, choice(d) { ACT.choice = d.c; },
+  pledge(d, el) { ACT.pledge[d.i] = el.checked; },
+  /* 교사 */
+  tab(d) { UI.t.tab = d.k; },
+  filter(d) { UI.t.filter = d.k; },
+  selStudent(d) { UI.t.sel = d.id; },
+  jump(d) { UI.t.tab = 'list'; UI.t.filter = 'all'; UI.t.sel = d.id; },
+  async refresh() { await loadList(); toast('최신 기록을 불러왔어요'); },
+  copyUndone() { const und = scoped().filter(s => !s.done);
+    copyText(['학번\t이름\t학급\t현재 단계\t콘텐츠 위치', ...und.map(s => [s.id, s.name, s.cls, stageText(s), contentText(s)].join('\t'))].join('\n'), `미이수 ${und.length}명 명단을 복사했어요`); return 'noRender'; },
+  copySheet() { copyText([Core.STUDENT_HEADERS.slice(0, 20).join('\t'), ...scoped().map(s => Core.toRow(s).slice(0, 20).join('\t'))].join('\n'), '시트 데이터를 복사했어요'); return 'noRender'; },
+  addStudent() { UI.modal = { kind: 'student', orig: null, vals: { cls: UI.t.cls !== 'all' ? UI.t.cls : '' } }; },
+  editStudent(d) { const s = UI.t.list.find(x => x.id === d.id); UI.modal = { kind: 'student', orig: s.id, vals: { id: s.id, name: s.name, email: s.email, cls: s.cls } }; },
+  async saveStudent() { const M = UI.modal; M.vals = readForm('f_', ['id', 'name', 'email', 'cls']); M.err = null;
+    const d = await run('upsertStudent', { orig: M.orig, student: M.vals }, { onError: m => { M.err = m; } });
+    if (!d) return; UI.modal = null; await loadList(); toast(d.mode === 'added' ? '학생을 추가했어요' : '학생 정보를 수정했어요'); },
+  askDeleteStudent(d) { const s = UI.t.list.find(x => x.id === d.id);
+    confirmBox({ title: `${esc(s.name)}(${esc(s.id)}) 학생을 삭제할까요?`, body: '학생 행과 학습 기록이 스프레드시트에서 지워져요. 되돌릴 수 없어요.', ok: '삭제', danger: true, act: 'deleteStudent', args: { id: s.id } }); },
+  askResetStudent(d) { const s = UI.t.list.find(x => x.id === d.id);
+    confirmBox({ title: `${esc(s.name)} 학생의 학습 기록을 초기화할까요?`, body: '사전 퀴즈부터 다시 시작해요. 이름·이메일·학급은 그대로예요.', ok: '초기화', danger: true, act: 'resetStudent', args: { id: s.id } }); },
+  addUser() { UI.modal = { kind: 'user', orig: null, vals: { role: '담임' } }; },
+  editUser(d) { const u = UI.t.users.find(x => x.email === d.email); UI.modal = { kind: 'user', orig: u.email, vals: { ...u } }; },
+  async saveUser() { const M = UI.modal; const v = readForm('u_', ['email', 'name', 'role', 'cls']); M.vals = v; M.err = null;
+    const d = await run('upsertUser', { orig: M.orig, user: v }, { onError: m => { M.err = m; } });
+    if (!d) return; UI.modal = null; await loadList(); toast('권한을 저장했어요'); },
+  askDeleteUser(d) { confirmBox({ title: '이 교사 권한을 삭제할까요?', body: `${esc(d.email)} 계정은 더 이상 교사 화면에 들어올 수 없어요.`, ok: '삭제', danger: true, act: 'deleteUser', args: { email: d.email } }); },
+  async confirmOk() { const M = UI.modal; UI.modal = null;
+    if (M.act === 'demoReset') { LDB = demoSeed(); saveLocal(); await loadList(); toast('데모 데이터로 초기화했어요'); return; }
+    const d = await run(M.act, M.args); if (!d) return;
+    if (M.act === 'deleteStudent' && UI.t.sel === M.args.id) UI.t.sel = null;
+    await loadList(); toast({ deleteStudent: '삭제했어요', resetStudent: '학습 기록을 초기화했어요', deleteUser: '권한을 삭제했어요' }[M.act] || '완료했어요'); },
+  async saveSettings() { const v = readForm('set_', Object.keys(Core.SETTING_INFO));
+    const d = await run('saveSettings', { settings: v }); if (!d) return; UI.set = d.settings; toast('설정을 저장했어요'); },
+  async previewUrl() { const T = UI.t; T.impUrl = document.getElementById('impUrl').value.trim(); T.impTab = document.getElementById('impTab').value.trim();
+    if (!/docs\.google\.com\/spreadsheets/.test(T.impUrl)) { toast('구글 스프레드시트 주소를 넣어 주세요', true); return 'noRender'; }
+    const d = await run('previewSheet', { url: T.impUrl, tab: T.impTab }); if (!d) return; T.imp = d; T.impResult = null; },
+  async previewOwn() { const d = await run('previewSheet', { own: true }); if (!d) return; UI.t.imp = d; UI.t.impResult = null; },
+  previewPaste() { const T = UI.t; T.impPaste = document.getElementById('impPaste').value;
+    const vals = T.impPaste.replace(/\r/g, '').split('\n').map(l => l.split('\t'));
+    T.imp = Core.parseImport(vals); T.impResult = null; },
+  sampleImport() { UI.t.impPaste = '학번\t이름\t이메일\t학급\n10301\t남궁별\ts10301@sample-ms.kr\t1학년 3반\n10302\t도하람\ts10302@sample-ms.kr\t1-3\n10101\t김하늘\ts10101@sample-ms.kr\t1-1\n10303\t선우진\t이메일없음\t1-3'; const ta = document.getElementById('impPaste'); if (ta) ta.value = UI.t.impPaste; A.previewPaste(); },
+  clearImport() { UI.t.imp = null; },
+  async doImport() { const rows = UI.t.impRows || []; const d = await run('importStudents', { rows }); if (!d) return;
+    UI.t.impResult = d; UI.t.imp = null; await loadList(); toast(`신규 ${d.added}명 · 갱신 ${d.updated}명 등록했어요`); },
+  askDemoReset() { confirmBox({ title: '데모 데이터를 초기화할까요?', body: '이 브라우저의 데모 기록이 처음 상태로 돌아가요.', ok: '초기화', danger: true, act: 'demoReset' }); }
+};
+
+document.addEventListener('click', async e => {
+  const el = e.target.closest('[data-a]'); if (!el) return;
+  if (el.classList.contains('scrim') && e.target !== el) return;
+  const fn = A[el.dataset.a]; if (!fn) return;
+  if (el.tagName === 'A' && el.dataset.a !== 'video') return;
+  const y = window.scrollY;
+  const r = await fn(el.dataset, el);
+  if (r === 'pass' || r === 'noRender') return;
+  render();
+  if (!['continue', 'review', 'toHub', 'preNext', 'startQuiz', 'qNext', 'reviewFromQuiz', 'backQuiz', 'tab', 'demoLogin', 'logout', 'cert', 'confirmYes'].includes(el.dataset.a)) window.scrollTo(0, y);
+  else window.scrollTo(0, 0);
+});
+document.addEventListener('input', e => { if (e.target.dataset.in === 'reason') ACT.reason = e.target.value; });
+document.addEventListener('change', e => {
+  if (e.target.dataset.in === 'cls') { UI.t.cls = e.target.value; UI.t.sel = null; render(); }
+  if (e.target.dataset.in === 'urole') { const w = document.getElementById('u_cls_wrap'); if (w) w.hidden = e.target.value === '관리자'; }
+});
+
+if (REMOTE) { render(); boot(true); } else { UI.screen = 'login'; render(); }
+
+</script>
+</body>
+</html>
