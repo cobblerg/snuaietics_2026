@@ -21,6 +21,7 @@ snuaietics_2026/
 ├─ dist/                 ← 만들어지는 파일 (직접 고치지 않음)
 │  ├─ apps-script/       Apps Script 에 붙여넣을 Code.gs · Core.gs · Index.html
 │  └─ preview.html       브라우저로 바로 여는 데모
+├─ tools/ppt/            화면 검토용 PPT 만들기 (npm run ppt)
 ├─ docs/                 PRD, 설치 안내
 └─ CLAUDE.md             Claude Code 작업 규칙
 ```
@@ -31,6 +32,14 @@ snuaietics_2026/
 3. `dist/preview.html` 을 브라우저로 열어 데모로 확인합니다.
 4. Apps Script 편집기의 `Code.gs` · `Core.gs` · `Index` 를 `dist/apps-script/` 의 같은 이름 파일 내용으로 바꾸고, **배포 → 배포 관리 → 수정 → 버전: 새 버전**으로 재배포합니다.
 5. 커밋하고 푸시합니다.
+
+### 화면 검토용 PPT 만들기
+앱 화면 하나를 슬라이드 한 장으로 옮긴 검토 자료(약 38장)를 만듭니다. Node.js 가 필요합니다.
+```
+npm install        # 처음 한 번
+npm run ppt        # → dist/AI 윤리 탐험 화면 검토.pptx
+```
+차시·장 제목, 퀴즈, 학습 확인 문제, 최소 학습 시간은 `src/` 에서 자동으로 가져옵니다. 장 본문은 슬라이드용으로 다듬은 글이라 `tools/ppt/slides.js` 의 `BODIES` 에 따로 있으니, `src/content.js` 의 본문을 고치면 함께 고쳐 주세요.
 
 `dist/apps-script/Index.html` 은 Apps Script 에서 글자가 바뀌어 생기는 오류를 피하려고 앱 코드를 영문·숫자(Base64)로 묶어 넣은 파일입니다. **직접 고치지 말고 항상 `src/` 를 고친 뒤 빌드**하세요.
 

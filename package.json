@@ -1,0 +1,12 @@
+{
+  "name": "snuaietics-2026",
+  "private": true,
+  "description": "AI 윤리 탐험 — 보조 도구 (화면 검토용 PPT 만들기)",
+  "scripts": {
+    "build": "python build.py",
+    "ppt": "node tools/ppt/build-ppt.js"
+  },
+  "devDependencies": {
+    "pptxgenjs": "3.12.0"
+  }
+}

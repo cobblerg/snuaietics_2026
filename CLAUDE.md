@@ -33,6 +33,12 @@
 - 데모에서는 영상 시청 확인(`videoWatch`)이 꺼진다. 영상 관련 변경은 배포본(`/dev` 테스트 주소)에서 확인해야 한다.
 - 배포: Apps Script 편집기의 세 파일을 `dist/apps-script/` 내용으로 바꾸고 **같은 배포를 새 버전으로** 재배포(주소 유지).
 
+## 화면 검토용 PPT
+- `npm install` 후 `npm run ppt` → `dist/AI 윤리 탐험 화면 검토.pptx` (pptxgenjs).
+- `tools/ppt/slides.js` 가 `src/core.js`·`content.js`·`checks.js` 를 읽어 제목·퀴즈·학습 확인·시간을 가져온다.
+- 장 본문은 `slides.js` 의 `BODIES[차시][장]` 에 손으로 다듬은 슬라이드용 글이다. `src/content.js` 본문을 바꾸면 `BODIES` 도 맞춰 고치고 PPT를 다시 만든다.
+- 글꼴은 '맑은 고딕'(Windows 기본). 가로형 13.33×7.5in.
+
 ## 문서
 - `docs/PRD.docx` 기획서, `docs/설치안내.md` 설치·배포 안내, `README.md` 전체 소개.
 - 교안 내용을 바꾸면 README의 '학습 내용' 표와 맞는지 확인한다.
