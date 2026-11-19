@@ -463,7 +463,7 @@ function vStaff() {
   const cls = classesOf(T.list);
   const showCls = ['list', 'stats', 'manage', 'sheet'].includes(T.tab) && cls.length > 1;
   const ctrl = `<div class="row" style="margin:16px 0">${tabs}<span class="spacer"></span>
-    ${showCls ? `<select id="clsSel" data-in="cls" style="width:auto" aria-label="학급 선택"><option value="all">${admin ? '전체 학급' : '담당 학급 전체'}</option>${cls.map(c => `<option value="${esc(c)}" ${T.cls === c ? 'selected' : ''}>${esc(c.replace('-', '학년 '))}반</option>`).join('')}</select>` : ''}
+    ${showCls ? `<select id="clsSel" data-in="cls" style="width:auto" aria-label="학급 선택"><option value="all">${admin ? '전체 학급' : '담당 학급 전체'}</option>${cls.map(c => `<option value="${esc(c)}" ${T.cls === c ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select>` : ''}
     <button class="btn soft sm" data-a="refresh">조회 새로고침</button><span class="tiny muted mono">조회 ${T.at ? fmt(T.at).slice(11) : '-'}</span></div>`;
   const list = scoped();
   const body = { list: () => tList(list), stats: () => tStats(list), manage: () => tManage(list), import: tImport, perm: tPerm, sheet: () => tSheet(list) }[T.tab]();

@@ -47,6 +47,13 @@ var Core = (function () {
     var m = c.match(/(\d+)\D+(\d+)/);
     return m ? (+m[1]) + '-' + (+m[2]) : c;
   }
+  // 시트에는 '2학년6반'(빈칸 없음)으로 저장하고, 프로그램 안과 화면에서는 '2-6'으로 다룬다.
+  function sheetCls(c) {
+    c = normCls(c);
+    var m = c.match(/^(\d+)-(\d+)$/);
+    return m ? m[1] + '학년' + m[2] + '반' : c;
+  }
+  function normClsList(v) { return String(v || '').split(/[,;]+/).map(normCls).filter(Boolean).join(','); }
   function curLesson(s) { for (var i = 0; i < LESSONS_N; i++) if (!s.lessons[i].done) return i; return LESSONS_N; }
   function fail(msg) { throw new Error(msg); }
 
@@ -288,7 +295,7 @@ var Core = (function () {
   }
   function toRow(s) {
     var yn = function (b) { return b ? 'Y' : 'N'; };
-    var row = [s.id, s.name, s.email, s.cls, yn(s.pre.done), s.pre.score == null ? '' : s.pre.score, s.pre.level || ''];
+    var row = [s.id, s.name, s.email, sheetCls(s.cls), yn(s.pre.done), s.pre.score == null ? '' : s.pre.score, s.pre.level || ''];
     s.lessons.forEach(function (l) { row.push(l.ch || '', l.tries, yn(l.done)); });
     var prog = { pre: s.pre, lessons: s.lessons, stage: s.stage, done: s.done, doneAt: s.doneAt, lastSeen: s.lastSeen };
     row.push(yn(s.done), fmtKST(s.doneAt), stageText(s), fmtKST(s.lastSeen), JSON.stringify(prog));
@@ -301,13 +308,13 @@ var Core = (function () {
     s.id = String(r[0]).trim(); s.name = String(r[1]).trim(); s.email = normEmail(r[2]); s.cls = normCls(r[3]);
     return s;
   }
-  function userFromRow(r) { return { email: normEmail(r[0]), name: String(r[1] || '').trim(), role: String(r[2] || '').trim(), cls: String(r[3] || '').trim() }; }
-  function userToRow(u) { return [u.email, u.name, u.role, u.cls || '']; }
+  function userFromRow(r) { return { email: normEmail(r[0]), name: String(r[1] || '').trim(), role: String(r[2] || '').trim(), cls: normClsList(r[3]) }; }
+  function userToRow(u) { return [u.email, u.name, u.role, String(u.cls || '').split(/[,;]+/).map(sheetCls).filter(Boolean).join(',')]; }
 
   return {
     N: N, QN: QN, VIDEO_CH: VIDEO_CH, SETTING_INFO: SETTING_INFO, STUDENT_HEADERS: STUDENT_HEADERS, USER_HEADERS: USER_HEADERS,
     defaults: defaults, normSettings: normSettings, startOf: startOf, levelOf: levelOf, minSec: minSec, remaining: remaining,
-    blankProgress: blankProgress, blankLesson: blankLesson, normEmail: normEmail, normCls: normCls, curLesson: curLesson, role: role,
+    blankProgress: blankProgress, blankLesson: blankLesson, normEmail: normEmail, normCls: normCls, sheetCls: sheetCls, curLesson: curLesson, role: role,
     homeroomClasses: homeroomClasses, act: act, isWrite: isWrite, isStudentAct: isStudentAct, parseImport: parseImport,
     toRow: toRow, fromRow: fromRow, userFromRow: userFromRow, userToRow: userToRow, fmtKST: fmtKST, stageText: stageText,
     validateIdentity: validateIdentity

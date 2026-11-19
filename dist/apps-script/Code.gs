@@ -36,7 +36,7 @@ function setup() {
   SpreadsheetApp.flush();
   if (set.getLastRow() < 2) writeSettings_(Core.defaults());
   var tpl = ensureSheet_(ss, SHEET.TPL, ['학번', '이름', '이메일', '학급']);
-  if (tpl.getLastRow() < 2) { tpl.getRange(2, 1, 500, 4).setNumberFormat('@'); tpl.getRange(2, 1, 1, 4).setValues([['10101', '홍길동', 's10101@학교도메인', '1-1']]); }
+  if (tpl.getLastRow() < 2) { tpl.getRange(2, 1, 500, 4).setNumberFormat('@'); tpl.getRange(2, 1, 1, 4).setValues([['10101', '홍길동', 's10101@학교도메인', '1학년1반']]); }
   var s1 = ss.getSheetByName('시트1') || ss.getSheetByName('Sheet1');
   if (s1 && s1.getLastRow() === 0 && ss.getSheets().length > 1) ss.deleteSheet(s1);
   return '설정 완료: 관리자 ' + owner;
