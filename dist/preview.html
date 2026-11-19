@@ -645,7 +645,7 @@ var Core = (function () {
   }
   function toRow(s) {
     var yn = function (b) { return b ? 'Y' : 'N'; };
-    var row = [s.id, s.name, s.email, s.cls, yn(s.pre.done), s.pre.score == null ? '' : s.pre.score, s.pre.level || ''];
+    var row = [s.id, s.name, s.email, normCls(s.cls), yn(s.pre.done), s.pre.score == null ? '' : s.pre.score, s.pre.level || ''];
     s.lessons.forEach(function (l) { row.push(l.ch || '', l.tries, yn(l.done)); });
     var prog = { pre: s.pre, lessons: s.lessons, stage: s.stage, done: s.done, doneAt: s.doneAt, lastSeen: s.lastSeen };
     row.push(yn(s.done), fmtKST(s.doneAt), stageText(s), fmtKST(s.lastSeen), JSON.stringify(prog));
@@ -659,7 +659,7 @@ var Core = (function () {
     return s;
   }
   function userFromRow(r) { return { email: normEmail(r[0]), name: String(r[1] || '').trim(), role: String(r[2] || '').trim(), cls: normClsList(r[3]) }; }
-  function userToRow(u) { return [u.email, u.name, u.role, u.cls || '']; }
+  function userToRow(u) { return [u.email, u.name, u.role, normClsList(u.cls)]; }
 
   return {
     N: N, QN: QN, VIDEO_CH: VIDEO_CH, SETTING_INFO: SETTING_INFO, STUDENT_HEADERS: STUDENT_HEADERS, USER_HEADERS: USER_HEADERS,
