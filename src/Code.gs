@@ -172,7 +172,7 @@ function addSampleStudents() {
     names.forEach(function (n, i) {
       var id = '1' + ('0' + c).slice(-2) + ('0' + (i + 1)).slice(-2);
       if (list.some(function (s) { return s.id === id; })) return;
-      var s = Core.blankProgress(); s.id = id; s.name = n; s.email = 'sample' + id + '@example.com'; s.cls = '1-' + c; list.push(s);
+      var s = Core.blankProgress(); s.id = id; s.name = n; s.email = 'sample' + id + '@example.com'; s.cls = '1학년' + c + '반'; list.push(s);
     });
   });
   writeAllStudents_(list);
