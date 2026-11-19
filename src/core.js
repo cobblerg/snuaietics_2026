@@ -42,11 +42,14 @@ var Core = (function () {
     return { pre: { done: false, score: null, level: null }, lessons: [blankLesson(), blankLesson(), blankLesson()], stage: 'pre', done: false, doneAt: null, lastSeen: null };
   }
   function normEmail(e) { return String(e || '').trim().toLowerCase(); }
+  // 학급은 시트·화면·프로그램 모두 '2학년6반'(빈칸 없음) 한 가지 형식으로 통일한다.
+  // '2학년 6반', '2-6' 같은 입력도 같은 값으로 읽는다.
   function normCls(c) {
     c = String(c || '').trim();
     var m = c.match(/(\d+)\D+(\d+)/);
-    return m ? (+m[1]) + '-' + (+m[2]) : c;
+    return m ? (+m[1]) + '학년' + (+m[2]) + '반' : c;
   }
+  function normClsList(v) { return String(v || '').split(/[,;]+/).map(normCls).filter(Boolean).join(','); }
   function curLesson(s) { for (var i = 0; i < LESSONS_N; i++) if (!s.lessons[i].done) return i; return LESSONS_N; }
   function fail(msg) { throw new Error(msg); }
 
@@ -188,7 +191,7 @@ var Core = (function () {
       var r = { email: normEmail(u.email), name: String(u.name || '').trim(), role: u.role, cls: u.role === '담임' ? String(u.cls || '').split(/[,;]+/).map(normCls).filter(Boolean).join(',') : '' };
       if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(r.email)) fail('이메일 형식이 올바르지 않아요.');
       if (!ROLES[r.role]) fail('역할은 관리자 또는 담임이에요.');
-      if (r.role === '담임' && !r.cls) fail('담임은 담당 학급을 입력해야 해요. 예: 1-3');
+      if (r.role === '담임' && !r.cls) fail('담임은 담당 학급을 입력해야 해요. 예: 1학년3반');
       if (findByEmail(db, r.email)) fail('학생으로 등록된 이메일이에요.');
       var origEmail = normEmail(a.orig || '');
       if (origEmail === me.email && (r.role !== '관리자' || r.email !== me.email)) fail('내 계정의 역할과 이메일은 스스로 바꿀 수 없어요.');
@@ -275,7 +278,7 @@ var Core = (function () {
   var STUDENT_HEADERS = ['학번', '이름', '구글 식별자(이메일)', '학급', '사전퀴즈 응시', '사전퀴즈 점수', '사전퀴즈 수준',
     '1차시 현재 장', '1차시 퀴즈 도전 횟수', '1차시 퀴즈 완료', '2차시 현재 장', '2차시 퀴즈 도전 횟수', '2차시 퀴즈 완료',
     '3차시 현재 장', '3차시 퀴즈 도전 횟수', '3차시 퀴즈 완료', '이수 여부', '이수 일시', '현재 단계', '최근 학습', '_진행데이터(수정 금지)'];
-  var USER_HEADERS = ['이메일', '이름', '역할(관리자/담임)', '담당학급(예: 1-3, 여러 반은 쉼표)'];
+  var USER_HEADERS = ['이메일', '이름', '역할(관리자/담임)', '담당학급(예: 1학년3반, 여러 반은 쉼표)'];
   function fmtKST(ms) {
     if (!ms) return '';
     var d = new Date(Number(ms) + 9 * 3600 * 1000), p = function (n) { return (n < 10 ? '0' : '') + n; };
@@ -288,7 +291,7 @@ var Core = (function () {
   }
   function toRow(s) {
     var yn = function (b) { return b ? 'Y' : 'N'; };
-    var row = [s.id, s.name, s.email, s.cls, yn(s.pre.done), s.pre.score == null ? '' : s.pre.score, s.pre.level || ''];
+    var row = [s.id, s.name, s.email, normCls(s.cls), yn(s.pre.done), s.pre.score == null ? '' : s.pre.score, s.pre.level || ''];
     s.lessons.forEach(function (l) { row.push(l.ch || '', l.tries, yn(l.done)); });
     var prog = { pre: s.pre, lessons: s.lessons, stage: s.stage, done: s.done, doneAt: s.doneAt, lastSeen: s.lastSeen };
     row.push(yn(s.done), fmtKST(s.doneAt), stageText(s), fmtKST(s.lastSeen), JSON.stringify(prog));
@@ -301,8 +304,8 @@ var Core = (function () {
     s.id = String(r[0]).trim(); s.name = String(r[1]).trim(); s.email = normEmail(r[2]); s.cls = normCls(r[3]);
     return s;
   }
-  function userFromRow(r) { return { email: normEmail(r[0]), name: String(r[1] || '').trim(), role: String(r[2] || '').trim(), cls: String(r[3] || '').trim() }; }
-  function userToRow(u) { return [u.email, u.name, u.role, u.cls || '']; }
+  function userFromRow(r) { return { email: normEmail(r[0]), name: String(r[1] || '').trim(), role: String(r[2] || '').trim(), cls: normClsList(r[3]) }; }
+  function userToRow(u) { return [u.email, u.name, u.role, normClsList(u.cls)]; }
 
   return {
     N: N, QN: QN, VIDEO_CH: VIDEO_CH, SETTING_INFO: SETTING_INFO, STUDENT_HEADERS: STUDENT_HEADERS, USER_HEADERS: USER_HEADERS,

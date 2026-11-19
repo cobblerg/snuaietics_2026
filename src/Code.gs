@@ -36,7 +36,7 @@ function setup() {
   SpreadsheetApp.flush();
   if (set.getLastRow() < 2) writeSettings_(Core.defaults());
   var tpl = ensureSheet_(ss, SHEET.TPL, ['학번', '이름', '이메일', '학급']);
-  if (tpl.getLastRow() < 2) tpl.getRange(2, 1, 1, 4).setValues([['10101', '홍길동', 's10101@학교도메인', '1-1']]);
+  if (tpl.getLastRow() < 2) { tpl.getRange(2, 1, 500, 4).setNumberFormat('@'); tpl.getRange(2, 1, 1, 4).setValues([['10101', '홍길동', 's10101@학교도메인', '1학년1반']]); }
   var s1 = ss.getSheetByName('시트1') || ss.getSheetByName('Sheet1');
   if (s1 && s1.getLastRow() === 0 && ss.getSheets().length > 1) ss.deleteSheet(s1);
   return '설정 완료: 관리자 ' + owner;
@@ -63,14 +63,24 @@ function ss_() {
 function sheet_(name) { var sh = ss_().getSheetByName(name); if (!sh) throw new Error('"' + name + '" 시트가 없어요. setup을 먼저 실행해 주세요.'); return sh; }
 
 /* ---------- 읽기/쓰기 ---------- */
+// 학급 칸('2-6' 같은 값)을 시트가 날짜(2월 6일)로 바꿔 버리는 문제 방지:
+// 학급 열은 글자 형식으로 쓰고, 이미 날짜로 바뀐 칸은 '월-일'로 되돌려 읽는다.
+function clsCell_(v) {
+  if (Object.prototype.toString.call(v) === '[object Date]') return Utilities.formatDate(v, ss_().getSpreadsheetTimeZone(), 'M-d');
+  return v;
+}
+function fixClsCol_(rows, idx) { rows.forEach(function (r) { r[idx] = clsCell_(r[idx]); }); return rows; }
 function readUsers_() {
   var sh = ss_().getSheetByName(SHEET.USR); if (!sh || sh.getLastRow() < 2) return [];
-  return sh.getRange(2, 1, sh.getLastRow() - 1, 4).getValues().filter(function (r) { return r[0]; }).map(Core.userFromRow);
+  return fixClsCol_(sh.getRange(2, 1, sh.getLastRow() - 1, 4).getValues(), 3).filter(function (r) { return r[0]; }).map(Core.userFromRow);
 }
 function writeUsers_(users) {
   var sh = sheet_(SHEET.USR);
   if (sh.getLastRow() > 1) sh.getRange(2, 1, sh.getLastRow() - 1, 4).clearContent();
-  if (users.length) sh.getRange(2, 1, users.length, 4).setValues(users.map(Core.userToRow));
+  if (users.length) {
+    sh.getRange(2, 4, users.length, 1).setNumberFormat('@');
+    sh.getRange(2, 1, users.length, 4).setValues(users.map(Core.userToRow));
+  }
 }
 function readSettings_() {
   var sh = ss_().getSheetByName(SHEET.SET), o = {};
@@ -86,13 +96,14 @@ function writeSettings_(set) {
 var NCOL = 21;
 function readAllStudents_() {
   var sh = sheet_(SHEET.STU); if (sh.getLastRow() < 2) return [];
-  return sh.getRange(2, 1, sh.getLastRow() - 1, NCOL).getValues().filter(function (r) { return String(r[0]).trim(); }).map(Core.fromRow);
+  return fixClsCol_(sh.getRange(2, 1, sh.getLastRow() - 1, NCOL).getValues(), 3).filter(function (r) { return String(r[0]).trim(); }).map(Core.fromRow);
 }
 function writeAllStudents_(list) {
   var sh = sheet_(SHEET.STU);
   if (sh.getLastRow() > 1) sh.getRange(2, 1, sh.getLastRow() - 1, NCOL).clearContent();
   if (list.length) {
     sh.getRange(2, 1, list.length, 1).setNumberFormat('@');
+    sh.getRange(2, 4, list.length, 1).setNumberFormat('@');
     sh.getRange(2, 1, list.length, NCOL).setValues(list.map(Core.toRow));
   }
 }
@@ -101,7 +112,7 @@ function findStudentRow_(email) {
   var cell = sh.getRange(2, 3, sh.getLastRow() - 1, 1).createTextFinder(email).matchEntireCell(true).matchCase(false).findNext();
   if (!cell) return null;
   var row = cell.getRow();
-  return { row: row, s: Core.fromRow(sh.getRange(row, 1, 1, NCOL).getValues()[0]) };
+  return { row: row, s: Core.fromRow(fixClsCol_(sh.getRange(row, 1, 1, NCOL).getValues(), 3)[0]) };
 }
 
 function appUrl_() { try { return ScriptApp.getService().getUrl() || ''; } catch (e) { return ''; } }
@@ -121,7 +132,7 @@ function api(type, argsJson) {
       var db1 = { students: f ? [f.s] : [], users: users, settings: settings };
       var r1 = Core.act(db1, email, now, type, args);
       if (type === 'bootstrap') r1.result.appUrl = appUrl_();
-      if (f && r1.changed.students.length) sheet_(SHEET.STU).getRange(f.row, 1, 1, NCOL).setValues([Core.toRow(db1.students[0])]);
+      if (f && r1.changed.students.length) { var sh1 = sheet_(SHEET.STU); sh1.getRange(f.row, 4).setNumberFormat('@'); sh1.getRange(f.row, 1, 1, NCOL).setValues([Core.toRow(db1.students[0])]); }
       return JSON.stringify({ ok: true, data: r1.result, now: now });
     }
 
@@ -161,7 +172,7 @@ function addSampleStudents() {
     names.forEach(function (n, i) {
       var id = '1' + ('0' + c).slice(-2) + ('0' + (i + 1)).slice(-2);
       if (list.some(function (s) { return s.id === id; })) return;
-      var s = Core.blankProgress(); s.id = id; s.name = n; s.email = 'sample' + id + '@example.com'; s.cls = '1-' + c; list.push(s);
+      var s = Core.blankProgress(); s.id = id; s.name = n; s.email = 'sample' + id + '@example.com'; s.cls = '1학년' + c + '반'; list.push(s);
     });
   });
   writeAllStudents_(list);

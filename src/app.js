@@ -22,8 +22,8 @@ function videoEmbed() {
 const LOCAL_KEY = 'ai-ethics-v2-demo';
 const DEMO_USERS = [
   { email: 'admin@sample-ms.kr', name: '정보부 관리자', role: '관리자', cls: '' },
-  { email: 't11@sample-ms.kr', name: '1학년 1반 담임', role: '담임', cls: '1-1' },
-  { email: 't12@sample-ms.kr', name: '1학년 2반 담임', role: '담임', cls: '1-2' }
+  { email: 't11@sample-ms.kr', name: '1학년 1반 담임', role: '담임', cls: '1학년1반' },
+  { email: 't12@sample-ms.kr', name: '1학년 2반 담임', role: '담임', cls: '1학년2반' }
 ];
 function demoSeed() {
   const NAMES = [['김하늘','이준서','박서연','최도윤','정하은','강민재','조유나','윤시우','장예린','임건우','한지아','오태민'],
@@ -36,7 +36,7 @@ function demoSeed() {
   const students = [];
   NAMES.forEach((list, c) => list.forEach((name, i) => {
     const seed = i + 3 + c * 2, id = `1${String(c + 1).padStart(2, '0')}${String(i + 1).padStart(2, '0')}`;
-    const s = Object.assign(Core.blankProgress(), { id, name, cls: `1-${c + 1}`, email: `s${id}@sample-ms.kr` });
+    const s = Object.assign(Core.blankProgress(), { id, name, cls: `1학년${c + 1}반`, email: `s${id}@sample-ms.kr` });
     const spec = SPECS[c][i], level = LV[c][i];
     students.push(s);
     if (spec === 'new') return;
@@ -463,11 +463,11 @@ function vStaff() {
   const cls = classesOf(T.list);
   const showCls = ['list', 'stats', 'manage', 'sheet'].includes(T.tab) && cls.length > 1;
   const ctrl = `<div class="row" style="margin:16px 0">${tabs}<span class="spacer"></span>
-    ${showCls ? `<select id="clsSel" data-in="cls" style="width:auto" aria-label="학급 선택"><option value="all">${admin ? '전체 학급' : '담당 학급 전체'}</option>${cls.map(c => `<option value="${esc(c)}" ${T.cls === c ? 'selected' : ''}>${esc(c.replace('-', '학년 '))}반</option>`).join('')}</select>` : ''}
+    ${showCls ? `<select id="clsSel" data-in="cls" style="width:auto" aria-label="학급 선택"><option value="all">${admin ? '전체 학급' : '담당 학급 전체'}</option>${cls.map(c => `<option value="${esc(c)}" ${T.cls === c ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select>` : ''}
     <button class="btn soft sm" data-a="refresh">조회 새로고침</button><span class="tiny muted mono">조회 ${T.at ? fmt(T.at).slice(11) : '-'}</span></div>`;
   const list = scoped();
   const body = { list: () => tList(list), stats: () => tStats(list), manage: () => tManage(list), import: tImport, perm: tPerm, sheet: () => tSheet(list) }[T.tab]();
-  const title = admin ? 'AI 윤리 자율 학습 현황' : `${esc(Core.homeroomClasses(UI.me).map(c => c.replace('-', '학년 ') + '반').join(', '))} 학습 현황`;
+  const title = admin ? 'AI 윤리 자율 학습 현황' : `${esc(Core.homeroomClasses(UI.me).join(', '))} 학습 현황`;
   return topbar(whoBox()) + `<div class="stack" style="gap:4px"><p class="eyebrow">${admin ? '관리자' : '담임'} 화면</p><h2>${title}</h2>
     <p class="small muted">${admin ? '전체 학생을 조회하고, 학생·권한·학습 시간을 관리해요.' : '담당 학급 학생만 조회할 수 있어요.'} 실시간으로 갱신되지 않으니 필요할 때 ‘조회 새로고침’을 눌러 주세요.</p></div>${ctrl}${body}`;
 }
@@ -564,7 +564,7 @@ function tImport() {
       <div class="row"><button class="btn sm" data-a="previewPaste">미리보기</button><button class="btn ghost sm" data-a="sampleImport">예시 넣어 보기</button></div>
     </div>
   </div>
-  <div class="banner"><b>명단 양식</b> · 머리글: <span class="mono">학번 | 이름 | 이메일 | 학급</span> (학급은 <span class="mono">1-3</span> 또는 <span class="mono">1학년 3반</span>). ‘학년’과 ‘반’이 따로 있어도 읽을 수 있어요. 이메일은 학생이 로그인할 학교 구글 계정이에요.</div>
+  <div class="banner"><b>명단 양식</b> · 머리글: <span class="mono">학번 | 이름 | 이메일 | 학급</span> (학급은 <span class="mono">1학년3반</span> 형식 — <span class="mono">1-3</span>, <span class="mono">1학년 3반</span>으로 써도 같은 값으로 읽어요). ‘학년’과 ‘반’이 따로 있어도 읽을 수 있어요. 이메일은 학생이 로그인할 학교 구글 계정이에요.</div>
   ${preview}</div>`;
 }
 function tPerm() {
@@ -603,7 +603,7 @@ function vModal() {
   if (M.kind === 'copy') return wrap(`<h3>아래 내용을 복사하세요</h3><p class="small muted">자동 복사가 막혀 있어요. 전체 선택 후 복사(Ctrl+C)하세요.</p><textarea id="copyBox" readonly style="min-height:180px;font-family:var(--mono);font-size:12px">${esc(M.text)}</textarea><div class="row"><span class="spacer"></span><button class="btn sm" data-a="closeModal">닫기</button></div>`);
   if (M.kind === 'student') { const v = M.vals;
     return wrap(`<h3>${M.orig ? '학생 정보 수정' : '학생 추가'}</h3>
-      ${['id:학번', 'name:이름', 'email:구글 계정(이메일)', 'cls:학급 (예: 1-3)'].map(x => { const [k, l] = x.split(':'); return `<label class="fld" for="f_${k}"><span>${l}</span><input type="text" id="f_${k}" value="${esc(v[k] || '')}"></label>`; }).join('')}
+      ${['id:학번', 'name:이름', 'email:구글 계정(이메일)', 'cls:학급 (예: 1학년3반)'].map(x => { const [k, l] = x.split(':'); return `<label class="fld" for="f_${k}"><span>${l}</span><input type="text" id="f_${k}" value="${esc(v[k] || '')}"></label>`; }).join('')}
       ${M.orig ? '<p class="tiny muted">학습 기록은 그대로 유지돼요.</p>' : ''}
       ${M.err ? `<div class="note bad"><b>저장하지 못했어요</b>${esc(M.err)}</div>` : ''}
       <div class="row"><span class="spacer"></span><button class="btn ghost sm" data-a="closeModal">취소</button><button class="btn sm" data-a="saveStudent">저장</button></div>`, '학생 정보'); }
@@ -612,7 +612,7 @@ function vModal() {
       <label class="fld" for="u_email"><span>구글 계정(이메일)</span><input type="text" id="u_email" value="${esc(v.email || '')}"></label>
       <label class="fld" for="u_name"><span>이름</span><input type="text" id="u_name" value="${esc(v.name || '')}"></label>
       <label class="fld" for="u_role"><span>역할</span><select id="u_role" data-in="urole"><option ${v.role === '담임' ? 'selected' : ''}>담임</option><option ${v.role === '관리자' ? 'selected' : ''}>관리자</option></select></label>
-      <label class="fld" for="u_cls" ${v.role === '관리자' ? 'hidden' : ''} id="u_cls_wrap"><span>담당 학급 (여러 반은 쉼표로: 1-1, 1-2)</span><input type="text" id="u_cls" value="${esc(v.cls || '')}"></label>
+      <label class="fld" for="u_cls" ${v.role === '관리자' ? 'hidden' : ''} id="u_cls_wrap"><span>담당 학급 (여러 반은 쉼표로: 1학년1반, 1학년2반)</span><input type="text" id="u_cls" value="${esc(v.cls || '')}"></label>
       ${M.err ? `<div class="note bad"><b>저장하지 못했어요</b>${esc(M.err)}</div>` : ''}
       <div class="row"><span class="spacer"></span><button class="btn ghost sm" data-a="closeModal">취소</button><button class="btn sm" data-a="saveUser">저장</button></div>`, '권한'); }
   return '';
@@ -821,7 +821,7 @@ const A = {
   previewPaste() { const T = UI.t; T.impPaste = document.getElementById('impPaste').value;
     const vals = T.impPaste.replace(/\r/g, '').split('\n').map(l => l.split('\t'));
     T.imp = Core.parseImport(vals); T.impResult = null; },
-  sampleImport() { UI.t.impPaste = '학번\t이름\t이메일\t학급\n10301\t남궁별\ts10301@sample-ms.kr\t1학년 3반\n10302\t도하람\ts10302@sample-ms.kr\t1-3\n10101\t김하늘\ts10101@sample-ms.kr\t1-1\n10303\t선우진\t이메일없음\t1-3'; const ta = document.getElementById('impPaste'); if (ta) ta.value = UI.t.impPaste; A.previewPaste(); },
+  sampleImport() { UI.t.impPaste = '학번\t이름\t이메일\t학급\n10301\t남궁별\ts10301@sample-ms.kr\t1학년3반\n10302\t도하람\ts10302@sample-ms.kr\t1학년3반\n10101\t김하늘\ts10101@sample-ms.kr\t1학년1반\n10303\t선우진\t이메일없음\t1학년3반'; const ta = document.getElementById('impPaste'); if (ta) ta.value = UI.t.impPaste; A.previewPaste(); },
   clearImport() { UI.t.imp = null; },
   async doImport() { const rows = UI.t.impRows || []; const d = await run('importStudents', { rows }); if (!d) return;
     UI.t.impResult = d; UI.t.imp = null; await loadList(); toast(`신규 ${d.added}명 · 갱신 ${d.updated}명 등록했어요`); },
