@@ -184,7 +184,7 @@ function vLogin() {
     </div>
     <div class="trail-art">${trailSVG(null)}
       <div class="grid3" style="margin-top:4px">${LESSONS.map((L, i) => `<div><p class="small" style="font-weight:700;color:${LC[i]}">${i + 1}차시</p><p class="small">${L.title}</p></div>`).join('')}</div>
-      <p class="tiny muted" style="margin-top:14px">이 교안은 과학기술정보통신부·정보통신정책연구원(KISDI)의 「인공지능 윤리 체험중심(중학교 교사용)」을 재구성하여 제작했어요. 비영리 교육 목적으로만 사용할 수 있어요.</p>
+      <p class="tiny muted" style="margin-top:14px">이 교안은 과학기술정보통신부·정보통신정책연구원(KISDI)의 「인공지능 윤리 체험중심(중학교 교사용)」(2026)을 재구성하여 제작했어요. 비영리 교육 목적으로만 사용할 수 있어요.</p>
     </div></section>`;
 }
 const DEMO_STUDENTS = ['s10101@sample-ms.kr', 's10102@sample-ms.kr', 's10103@sample-ms.kr', 's10104@sample-ms.kr', 's10201@sample-ms.kr'];
